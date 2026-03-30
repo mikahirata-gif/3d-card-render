@@ -1,0 +1,2168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Card Designer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #07070f;
+      --glass:        rgba(14, 14, 24, 0.72);
+      --glass-2:      rgba(20, 20, 34, 0.65);
+      --glass-hover:  rgba(30, 30, 50, 0.80);
+      --glass-active: rgba(124,106,245,0.16);
+      --border:       rgba(255,255,255,0.08);
+      --border-light: rgba(255,255,255,0.14);
+      --blur: blur(40px) saturate(160%);
+      --text:         rgba(255,255,255,0.90);
+      --text-muted:   rgba(255,255,255,0.42);
+      --text-dim:     rgba(255,255,255,0.20);
+      --accent:  #7c6af5;
+      --accent2: #a855f7;
+      --accent-dim: rgba(124,106,245,0.16);
+      --glow: 0 0 20px rgba(124,106,245,0.25);
+      --inner-hi: 0 1px 0 rgba(255,255,255,0.07) inset;
+      --shadow-lg: 0 24px 64px rgba(0,0,0,0.55);
+    }
+
+    html, body {
+      height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px; overflow: hidden;
+    }
+
+    /* ===== TOP BAR ===== */
+    #top-bar {
+      height: 48px;
+      background: var(--glass);
+      backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+      border-bottom: 1px solid var(--border-light);
+      box-shadow: var(--inner-hi), 0 1px 20px rgba(0,0,0,0.3);
+      display: flex; align-items: center; padding: 0 16px; gap: 4px;
+      flex-shrink: 0; position: relative; z-index: 10;
+    }
+    #app-name {
+      font-size: 13px; font-weight: 600; color: var(--text);
+      letter-spacing: 0.01em; white-space: nowrap;
+      display: flex; align-items: center; gap: 6px; margin-right: 6px;
+    }
+    .top-sep { width: 1px; height: 16px; background: var(--border-light); margin: 0 8px; flex-shrink: 0; }
+    #top-bar-center { display: flex; align-items: center; gap: 3px; flex: 1; justify-content: center; }
+    #top-bar-right { margin-left: auto; }
+
+    .view-btn {
+      height: 28px; padding: 0 10px; border-radius: 8px;
+      border: 1px solid transparent; background: transparent;
+      color: var(--text-muted); font-size: 11.5px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; gap: 4px; white-space: nowrap;
+    }
+    .view-btn:hover {
+      background: var(--glass-hover); backdrop-filter: var(--blur);
+      border-color: var(--border-light); color: var(--text);
+      box-shadow: var(--inner-hi);
+    }
+    .view-btn.active {
+      background: var(--glass-active); backdrop-filter: var(--blur);
+      border-color: rgba(124,106,245,0.35); color: var(--accent);
+      box-shadow: var(--glow), var(--inner-hi);
+    }
+    .view-btn svg { flex-shrink: 0; }
+
+    .export-top-btn {
+      height: 28px; padding: 0 14px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(74,74,244,0.55);
+      backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+      color: rgba(255,255,255,0.95); font-size: 11.5px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; gap: 5px;
+      box-shadow: 0 2px 14px rgba(74,74,244,0.3), var(--inner-hi);
+    }
+    .export-top-btn:hover {
+      background: rgba(74,74,244,0.75);
+      box-shadow: 0 4px 22px rgba(74,74,244,0.45), var(--inner-hi);
+    }
+
+    /* ===== LAYOUT ===== */
+    #workspace { display: flex; height: calc(100vh - 48px); overflow: hidden; }
+    #canvas-container { flex: 1; position: relative; overflow: hidden; }
+    #canvas-container canvas { display: block; width: 100% !important; height: 100% !important; }
+
+    /* Canvas hint */
+    #canvas-hint {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 12px; align-items: center;
+      background: var(--glass); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--border-light); border-radius: 24px;
+      padding: 6px 18px; pointer-events: none; user-select: none;
+      box-shadow: var(--shadow-lg), var(--inner-hi);
+    }
+    .hint-item { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: rgba(255,255,255,0.30); }
+    .hint-key {
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 4px; padding: 1px 6px; font-size: 9.5px;
+      color: rgba(255,255,255,0.36); font-family: monospace;
+    }
+    .hint-dot { width: 2px; height: 2px; border-radius: 50%; background: rgba(255,255,255,0.12); }
+
+    /* ===== RIGHT PANEL ===== */
+    #panel {
+      width: 322px; min-width: 200px; max-width: 600px;
+      background: var(--glass);
+      backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+      border-left: 1px solid var(--border-light);
+      box-shadow: -24px 0 64px rgba(0,0,0,0.35), var(--inner-hi);
+      display: flex; flex-direction: column; overflow: hidden;
+      position: relative; flex-shrink: 0;
+    }
+    #panel-resize-handle {
+      position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+      cursor: col-resize; z-index: 20; transition: background 0.15s; border-radius: 0 3px 3px 0;
+    }
+    #panel-resize-handle:hover, #panel-resize-handle.dragging { background: var(--accent); }
+
+    /* ===== TABS ===== */
+    #panel-tabs {
+      display: flex; border-bottom: 1px solid var(--border);
+      flex-shrink: 0; padding: 0 6px; height: 42px;
+      align-items: flex-end; overflow-x: auto;
+      background: rgba(0,0,0,0.18);
+    }
+    #panel-tabs::-webkit-scrollbar { display: none; }
+
+    .panel-tab {
+      flex: 1; height: 34px; border: none; background: transparent;
+      color: var(--text-muted); font-size: 11px; font-weight: 500;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center;
+      gap: 4px; white-space: nowrap; border-radius: 6px 6px 0 0; padding: 0 4px;
+    }
+    .panel-tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .panel-tab.active {
+      color: var(--text); border-bottom-color: var(--accent);
+      background: rgba(124,106,245,0.07);
+    }
+    .panel-tab svg { opacity: 0.60; flex-shrink: 0; }
+    .panel-tab.active svg { opacity: 1; }
+
+    /* ===== PANEL BODY ===== */
+    #panel-body { flex: 1; overflow-y: auto; overflow-x: hidden; }
+    #panel-body::-webkit-scrollbar { width: 3px; }
+    #panel-body::-webkit-scrollbar-track { background: transparent; }
+    #panel-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 2px; }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ===== COLLAPSIBLE SECTIONS ===== */
+    .section { border-bottom: 1px solid var(--border); }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; cursor: pointer; user-select: none; transition: background 0.12s;
+    }
+    .section-header:hover { background: rgba(255,255,255,0.03); }
+
+    .section-header-left {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 11px; font-weight: 600; color: var(--text); letter-spacing: 0.01em;
+    }
+
+    .section-chevron { color: var(--text-dim); transition: transform 0.16s; flex-shrink: 0; }
+    .section.collapsed .section-chevron { transform: rotate(-90deg); }
+
+    .section-body { padding: 4px 14px 14px; }
+    .section.collapsed .section-body { display: none; }
+
+    /* ===== PROP ROWS ===== */
+    .prop-row { display: flex; align-items: center; gap: 8px; min-height: 27px; padding: 1px 0; }
+    .prop-label { font-size: 11px; color: var(--text-muted); width: 88px; min-width: 88px; flex-shrink: 0; }
+
+    /* ===== SLIDERS ===== */
+    .slider-wrap { flex: 1; display: flex; align-items: center; }
+
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 3px; border-radius: 2px; outline: none; cursor: pointer;
+      background: linear-gradient(to right, var(--accent) var(--pct, 0%), rgba(255,255,255,0.10) var(--pct, 0%));
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+      background: rgba(255,255,255,0.95);
+      cursor: pointer; transition: transform 0.1s, box-shadow 0.1s;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.55), 0 0 0 1.5px rgba(255,255,255,0.15);
+    }
+    input[type="range"]:hover::-webkit-slider-thumb,
+    input[type="range"]:active::-webkit-slider-thumb {
+      transform: scale(1.3);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.6), 0 0 0 2.5px var(--accent), 0 0 16px rgba(124,106,245,0.4);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 13px; height: 13px; border-radius: 50%;
+      background: rgba(255,255,255,0.95); border: none; cursor: pointer;
+    }
+
+    .slider-value {
+      font-size: 11px; color: var(--text-muted); width: 34px; text-align: right;
+      flex-shrink: 0; font-variant-numeric: tabular-nums;
+    }
+
+    /* ===== XYZ TRANSFORM ===== */
+    .xyz-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+    .xyz-row { display: grid; grid-template-columns: 16px 1fr 34px; align-items: center; gap: 7px; }
+    .xyz-axis {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
+      width: 16px; height: 16px; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .xyz-axis.x { background: rgba(255,85,85,0.18); color: #ff7878; border: 1px solid rgba(255,85,85,0.22); }
+    .xyz-axis.y { background: rgba(85,200,85,0.18); color: #72d672; border: 1px solid rgba(85,200,85,0.22); }
+    .xyz-axis.z { background: rgba(85,150,255,0.18); color: #72acff; border: 1px solid rgba(85,150,255,0.22); }
+
+    /* ===== MATERIAL PRESETS ===== */
+    .mat-preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 4px; }
+
+    .mat-preset-btn {
+      position: relative; height: 66px; border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--glass-2); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+      cursor: pointer; overflow: hidden; transition: all 0.18s;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: flex-end; padding-bottom: 7px;
+      box-shadow: var(--inner-hi);
+    }
+    .mat-preset-btn:hover {
+      border-color: var(--border-light); transform: translateY(-2px);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.3), var(--inner-hi);
+    }
+    .mat-preset-btn.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 8px 24px rgba(124,106,245,0.22), var(--inner-hi);
+    }
+
+    .mat-sphere {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      width: 30px; height: 30px; border-radius: 50%; pointer-events: none;
+    }
+    .mat-sphere.plastic { background: radial-gradient(circle at 35% 32%, #8878ff, #1a1a3e 70%); box-shadow: 3px 4px 10px rgba(0,0,0,0.6), inset -1px -2px 3px rgba(0,0,0,0.4); }
+    .mat-sphere.metal   { background: radial-gradient(circle at 35% 32%, #e0e0e8, #606070 70%); box-shadow: 3px 4px 10px rgba(0,0,0,0.6); }
+    .mat-sphere.matte   { background: radial-gradient(circle at 42% 40%, #3e3e52, #1a1a28 70%); box-shadow: 2px 3px 8px rgba(0,0,0,0.5); }
+    .mat-sphere.holographic { background: conic-gradient(from 0deg, #f0f, #0ff, #ff0, #0f0, #f0f); box-shadow: 3px 4px 10px rgba(0,0,0,0.5); }
+
+    .mat-preset-label { font-size: 10px; font-weight: 500; color: var(--text-muted); position: relative; z-index: 1; }
+    .mat-preset-btn.active .mat-preset-label { color: var(--accent); }
+
+    /* ===== UPLOAD ===== */
+    .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 2px; }
+    .upload-item { display: flex; flex-direction: column; gap: 5px; }
+    .upload-item-label { font-size: 10.5px; color: var(--text-dim); letter-spacing: 0.01em; text-align: center; }
+
+    .upload-btn {
+      width: 100%; height: 62px; border: 1px dashed rgba(255,255,255,0.13);
+      border-radius: 10px; background: rgba(255,255,255,0.03); color: var(--text-muted);
+      font-size: 10.5px; cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 5px;
+      transition: all 0.15s; position: relative; overflow: hidden;
+    }
+    .upload-btn:hover {
+      border-color: var(--accent); background: rgba(124,106,245,0.08);
+      color: var(--text); box-shadow: 0 0 18px rgba(124,106,245,0.15);
+    }
+    .upload-btn input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+    .upload-thumb { width: 100%; height: 38px; border-radius: 7px; overflow: hidden; background: rgba(0,0,0,0.35); border: 1px solid var(--border); }
+    .upload-thumb img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .upload-thumb img.has-image { display: block; }
+
+    /* ===== COLOR ROWS ===== */
+    .color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-height: 27px; }
+    .color-label { font-size: 11px; color: var(--text-muted); flex: 1; }
+
+    input[type="color"] {
+      -webkit-appearance: none; width: 26px; height: 26px;
+      border: 1px solid var(--border-light); border-radius: 6px;
+      background: none; cursor: pointer; padding: 2px; overflow: hidden; transition: all 0.15s;
+    }
+    input[type="color"]:hover { border-color: rgba(255,255,255,0.28); box-shadow: 0 0 8px rgba(255,255,255,0.08); }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
+
+    .hex-input {
+      width: 72px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);
+      background: rgba(0,0,0,0.30); backdrop-filter: blur(8px);
+      color: var(--text); font-size: 11px;
+      font-family: 'SF Mono', 'Fira Code', monospace; letter-spacing: 0.04em;
+      outline: none; text-transform: uppercase; transition: all 0.15s;
+    }
+    .hex-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(124,106,245,0.20); }
+    .hex-input.invalid { border-color: #ff5555; color: #ff5555; }
+
+    /* ===== BG PRESETS ===== */
+    .bg-preset-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; margin-bottom: 10px; }
+    .bg-preset-btn {
+      height: 40px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.08);
+      cursor: pointer; font-size: 9px; font-weight: 600; letter-spacing: 0.03em;
+      transition: all 0.15s; color: rgba(255,255,255,0.42);
+      display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px;
+      backdrop-filter: blur(4px);
+    }
+    .bg-preset-btn:hover { border-color: rgba(255,255,255,0.20); transform: translateY(-1px); }
+    .bg-preset-btn.active { border-color: var(--accent) !important; color: var(--accent) !important; box-shadow: 0 0 12px rgba(124,106,245,0.22); }
+
+    /* ===== SEGMENTED CONTROL ===== */
+    .segmented-control {
+      display: flex; background: rgba(0,0,0,0.28); border: 1px solid var(--border);
+      backdrop-filter: blur(10px); border-radius: 9px; padding: 2px; gap: 2px; margin-bottom: 10px;
+    }
+    .seg-btn {
+      flex: 1; height: 24px; border: none; border-radius: 7px; background: transparent;
+      color: var(--text-muted); font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s;
+    }
+    .seg-btn:hover { color: var(--text); }
+    .seg-btn.active { background: rgba(255,255,255,0.10); color: var(--text); box-shadow: var(--inner-hi); }
+
+    /* ===== MISC ===== */
+    .sub-label { font-size: 9.5px; color: var(--text-dim); letter-spacing: 0.01em; margin: 8px 0 7px; }
+    .sub-divider { height: 1px; background: var(--border); margin: 10px 0; }
+
+    .add-stop-btn {
+      width: 100%; padding: 7px; border-radius: 9px;
+      border: 1px solid var(--border-light);
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+      color: var(--text-muted); font-size: 11px;
+      cursor: pointer; margin-bottom: 8px; transition: all 0.15s;
+      box-shadow: var(--inner-hi);
+    }
+    .add-stop-btn:hover {
+      border-color: var(--accent); color: var(--accent);
+      background: rgba(124,106,245,0.10);
+      box-shadow: var(--glow), var(--inner-hi);
+    }
+
+    .remove-stop-btn {
+      width: 20px; height: 20px; border-radius: 6px;
+      border: 1px solid var(--border-light);
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      color: var(--text-muted); font-size: 10px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; padding: 0; transition: all 0.15s; line-height: 1;
+      box-shadow: var(--inner-hi);
+    }
+    .remove-stop-btn:hover {
+      border-color: rgba(255,85,85,0.5); color: #ff7878;
+      background: rgba(255,85,85,0.12);
+      box-shadow: 0 0 10px rgba(255,85,85,0.18), var(--inner-hi);
+    }
+
+    .reset-btn {
+      width: 100%; padding: 8px; border-radius: 9px;
+      border: 1px solid var(--border-light);
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+      color: var(--text-muted); font-size: 11px;
+      cursor: pointer; margin-top: 6px; transition: all 0.15s;
+      box-shadow: var(--inner-hi);
+    }
+    .reset-btn:hover {
+      border-color: var(--accent); color: var(--accent);
+      background: rgba(124,106,245,0.10);
+      box-shadow: var(--glow), var(--inner-hi);
+    }
+
+    /* ===== EXPORT TAB ===== */
+    .export-section { padding: 16px 14px; }
+    .export-field-label { font-size: 10.5px; color: var(--text-dim); letter-spacing: 0.01em; margin-bottom: 7px; }
+    .export-select {
+      width: 100%; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--border);
+      background: rgba(0,0,0,0.28); backdrop-filter: blur(10px);
+      color: var(--text); font-size: 12px;
+      outline: none; cursor: pointer; margin-bottom: 12px;
+      -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      transition: all 0.15s;
+    }
+    .export-select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(124,106,245,0.20); }
+
+    .export-btn {
+      width: 100%; padding: 11px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.13);
+      background: rgba(74,74,244,0.55);
+      backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+      color: rgba(255,255,255,0.95); font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      box-shadow: 0 4px 22px rgba(74,74,244,0.28), var(--inner-hi);
+    }
+    .export-btn:hover {
+      background: rgba(74,74,244,0.75);
+      box-shadow: 0 6px 30px rgba(74,74,244,0.45), var(--inner-hi);
+    }
+    .export-btn:active { transform: scale(0.98); }
+  </style>
+</head>
+<body>
+
+<div id="app" style="display:flex;flex-direction:column;height:100vh;">
+
+  <!-- TOP BAR -->
+  <div id="top-bar">
+    <div id="app-name">
+      3D Card Render
+    </div>
+    <div class="top-sep"></div>
+    <div id="top-bar-center">
+      <button class="view-btn active" data-view="perspective">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        3D
+      </button>
+      <button class="view-btn" data-view="front">Front</button>
+      <button class="view-btn" data-view="top">Top</button>
+      <button class="view-btn" data-view="side">Side</button>
+      <div class="top-sep"></div>
+      <button class="view-btn" id="btn-reset-camera">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Reset
+      </button>
+    </div>
+    <div id="top-bar-right">
+      <button class="export-top-btn" id="export-top-btn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+    </div>
+  </div>
+
+  <!-- WORKSPACE -->
+  <div id="workspace">
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container">
+      <div id="canvas-hint">
+        <span class="hint-item"><span class="hint-key">drag</span> Rotate</span>
+        <span class="hint-dot"></span>
+        <span class="hint-item"><span class="hint-key">scroll</span> Zoom</span>
+        <span class="hint-dot"></span>
+        <span class="hint-item"><span class="hint-key">right-drag</span> Pan</span>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div id="panel">
+      <div id="panel-resize-handle"></div>
+
+      <!-- Tabs -->
+      <div id="panel-tabs">
+        <button class="panel-tab active" data-tab="design">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1 1 2.48 1.02 3.5 1.02 2.2 0 3-1.8 3-3.02 0-1.67-1.33-3.04-1.5-3.04z"/></svg>
+          Design
+        </button>
+        <button class="panel-tab" data-tab="lighting">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+          Scene
+</button>
+        <button class="panel-tab" data-tab="export">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+      </div>
+
+      <!-- Panel Body -->
+      <div id="panel-body">
+
+        <!-- ====== TAB: DESIGN ====== -->
+        <div class="tab-pane active" id="tab-design">
+
+          <div class="section">
+            <div class="section-header">
+              <div class="section-header-left">
+                Card design
+              </div>
+              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="section-body">
+              <div class="upload-grid">
+                <div class="upload-item">
+                  <div class="upload-item-label">Front</div>
+                  <label class="upload-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.45"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>Upload</span>
+                    <input type="file" id="upload-front" accept="image/*" />
+                  </label>
+                  <div class="upload-thumb" id="thumb-front"><img id="thumb-front-img" alt="Front" /></div>
+                </div>
+                <div class="upload-item">
+                  <div class="upload-item-label">Back</div>
+                  <label class="upload-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.45"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>Upload</span>
+                    <input type="file" id="upload-back" accept="image/*" />
+                  </label>
+                  <div class="upload-thumb" id="thumb-back"><img id="thumb-back-img" alt="Back" /></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">
+              <div class="section-header-left">Displacement</div>
+              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="section-body">
+              <div class="upload-grid">
+                <div class="upload-item">
+                  <div class="upload-item-label">Front Map</div>
+                  <label class="upload-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.45"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>Upload</span>
+                    <input type="file" id="upload-bump-front" accept="image/*" />
+                  </label>
+                  <div class="upload-thumb" id="thumb-bump-front"><img id="thumb-bump-front-img" alt="" /></div>
+                </div>
+                <div class="upload-item">
+                  <div class="upload-item-label">Back Map</div>
+                  <label class="upload-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.45"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>Upload</span>
+                    <input type="file" id="upload-bump-back" accept="image/*" />
+                  </label>
+                  <div class="upload-thumb" id="thumb-bump-back"><img id="thumb-bump-back-img" alt="" /></div>
+                </div>
+              </div>
+              <div class="prop-row" style="margin-top:6px;">
+                <span class="prop-label">Depth</span>
+                <div class="slider-wrap"><input type="range" id="sl-bump-scale" min="-8" max="8" step="0.1" value="1" /></div>
+                <span class="slider-value" id="val-bump-scale">1.0</span>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:4px;">
+                <button class="reset-btn" id="btn-clear-bump-front" style="flex:1;">Clear Front</button>
+                <button class="reset-btn" id="btn-clear-bump-back" style="flex:1;">Clear Back</button>
+              </div>
+              <div style="font-size:10px;color:var(--text-dim);margin-top:8px;line-height:1.5;">
+                White = raised · Black = depressed<br>Negative depth = invert (deboss)
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">
+              <div class="section-header-left">
+                Presets
+              </div>
+              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="section-body">
+              <div class="mat-preset-grid" id="material-presets">
+                <button class="mat-preset-btn active" data-preset="plastic">
+                  <div class="mat-sphere plastic"></div>
+                  <span class="mat-preset-label">Plastic</span>
+                </button>
+                <button class="mat-preset-btn" data-preset="metal">
+                  <div class="mat-sphere metal"></div>
+                  <span class="mat-preset-label">Metal</span>
+                </button>
+                <button class="mat-preset-btn" data-preset="matte">
+                  <div class="mat-sphere matte"></div>
+                  <span class="mat-preset-label">Matte</span>
+                </button>
+                <button class="mat-preset-btn" data-preset="holographic">
+                  <div class="mat-sphere holographic"></div>
+                  <span class="mat-preset-label">Holo</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">
+              <div class="section-header-left">
+                Properties
+              </div>
+              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="section-body">
+              <div class="prop-row">
+                <span class="prop-label">Metalness</span>
+                <div class="slider-wrap"><input type="range" id="sl-metalness" min="0" max="1" step="0.01" value="0.1" /></div>
+                <span class="slider-value" id="val-metalness">0.1</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">Roughness</span>
+                <div class="slider-wrap"><input type="range" id="sl-roughness" min="0" max="1" step="0.01" value="0.3" /></div>
+                <span class="slider-value" id="val-roughness">0.3</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">Clearcoat</span>
+                <div class="slider-wrap"><input type="range" id="sl-clearcoat" min="0" max="1" step="0.01" value="0.5" /></div>
+                <span class="slider-value" id="val-clearcoat">0.5</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">CC Roughness</span>
+                <div class="slider-wrap"><input type="range" id="sl-clearcoat-roughness" min="0" max="1" step="0.01" value="0.1" /></div>
+                <span class="slider-value" id="val-clearcoat-roughness">0.1</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">Iridescence</span>
+                <div class="slider-wrap"><input type="range" id="sl-iridescence" min="0" max="1" step="0.01" value="0.0" /></div>
+                <span class="slider-value" id="val-iridescence">0.0</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">Grain</span>
+                <div class="slider-wrap"><input type="range" id="sl-grain" min="0" max="0.12" step="0.005" value="0" /></div>
+                <span class="slider-value" id="val-grain">0</span>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /tab-design -->
+
+        <!-- ====== TAB: LIGHTING ====== -->
+        <div class="tab-pane" id="tab-lighting">
+
+          <div class="section">
+            <div class="section-header">
+              <div class="section-header-left">
+                Transform
+              </div>
+              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="section-body">
+              <div class="xyz-group">
+                <div class="xyz-row">
+                  <span class="xyz-axis x">X</span>
+                  <div class="slider-wrap"><input type="range" id="sl-tilt-x" min="-180" max="180" step="1" value="0" /></div>
+                  <span class="slider-value" id="val-tilt-x">0°</span>
+                </div>
+                <div class="xyz-row">
+                  <span class="xyz-axis y">Y</span>
+                  <div class="slider-wrap"><input type="range" id="sl-tilt-y" min="-180" max="180" step="1" value="0" /></div>
+                  <span class="slider-value" id="val-tilt-y">0°</span>
+                </div>
+                <div class="xyz-row">
+                  <span class="xyz-axis z">Z</span>
+                  <div class="slider-wrap"><input type="range" id="sl-tilt-z" min="-180" max="180" step="1" value="0" /></div>
+                  <span class="slider-value" id="val-tilt-z">0°</span>
+                </div>
+              </div>
+              <button class="reset-btn" id="btn-reset-tilt">Reset Transform</button>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">
+              <div class="section-header-left">
+                Background
+              </div>
+              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="section-body">
+              <div class="bg-preset-row" id="bg-presets">
+                <button class="bg-preset-btn active" data-bg="dark" style="background:#0a0a0f;">Dark</button>
+                <button class="bg-preset-btn" data-bg="studio" style="background:linear-gradient(160deg,#1a1a2e,#0a0a16);">Studio</button>
+                <button class="bg-preset-btn" data-bg="gradient" style="background:linear-gradient(135deg,#13131F,#4A4AF4);">Grad</button>
+                <button class="bg-preset-btn" data-bg="white" style="background:#f0f0f0;color:#bbb;">White</button>
+              </div>
+
+              <div class="sub-divider"></div>
+
+              <div class="segmented-control">
+                <button class="seg-btn active" id="bg-mode-solid">Solid</button>
+                <button class="seg-btn" id="bg-mode-gradient">Gradient</button>
+              </div>
+
+              <div id="bg-solid-controls">
+                <div class="color-row">
+                  <span class="color-label">Color</span>
+                  <input type="color" id="bg-solid-color" value="#0a0a0f" />
+                  <input type="text" class="hex-input" id="bg-solid-hex" value="#0A0A0F" maxlength="7" />
+                </div>
+              </div>
+
+              <div id="bg-gradient-controls" style="display:none;">
+                <div id="grad-stops-container"></div>
+                <button class="add-stop-btn" id="bg-grad-add-stop">+ Add color stop</button>
+                <div class="prop-row">
+                  <span class="prop-label">Angle</span>
+                  <div class="slider-wrap"><input type="range" id="bg-grad-angle" min="0" max="360" step="1" value="135" /></div>
+                  <span class="slider-value" id="val-bg-grad-angle">135°</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">
+              <div class="section-header-left">
+                Ambient
+              </div>
+              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="section-body">
+              <div class="prop-row">
+                <span class="prop-label">Intensity</span>
+                <div class="slider-wrap"><input type="range" id="sl-ambient" min="0" max="2" step="0.05" value="0.3" /></div>
+                <span class="slider-value" id="val-ambient">0.3</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">Environment</span>
+                <div class="slider-wrap"><input type="range" id="sl-env" min="0" max="3" step="0.05" value="1.0" /></div>
+                <span class="slider-value" id="val-env">1.0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">
+              <div class="section-header-left">
+                Key Light
+              </div>
+              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="section-body">
+              <div class="prop-row">
+                <span class="prop-label">Intensity</span>
+                <div class="slider-wrap"><input type="range" id="sl-key" min="0" max="5" step="0.1" value="2.0" /></div>
+                <span class="slider-value" id="val-key">2.0</span>
+              </div>
+              <div class="color-row">
+                <span class="color-label">Color</span>
+                <input type="color" id="col-key" value="#ffffff" />
+              </div>
+              <div class="sub-divider"></div>
+              <div class="sub-label">Position</div>
+              <div class="prop-row">
+                <span class="prop-label">Angle</span>
+                <div class="slider-wrap"><input type="range" id="sl-key-azimuth" min="0" max="360" step="1" value="30" /></div>
+                <span class="slider-value" id="val-key-azimuth">30°</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">Elevation</span>
+                <div class="slider-wrap"><input type="range" id="sl-key-elevation" min="5" max="89" step="1" value="40" /></div>
+                <span class="slider-value" id="val-key-elevation">40°</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">
+              <div class="section-header-left">
+                Fill &amp; Rim
+              </div>
+              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="section-body">
+              <div class="prop-row">
+                <span class="prop-label">Fill</span>
+                <div class="slider-wrap"><input type="range" id="sl-fill" min="0" max="3" step="0.05" value="0.8" /></div>
+                <span class="slider-value" id="val-fill">0.8</span>
+              </div>
+              <div class="color-row">
+                <span class="color-label">Fill Color</span>
+                <input type="color" id="col-fill" value="#4040ff" />
+              </div>
+              <div class="sub-divider"></div>
+              <div class="prop-row">
+                <span class="prop-label">Rim</span>
+                <div class="slider-wrap"><input type="range" id="sl-rim" min="0" max="3" step="0.05" value="0.5" /></div>
+                <span class="slider-value" id="val-rim">0.5</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">
+              <div class="section-header-left">
+                Shadow
+              </div>
+              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="section-body">
+              <div class="prop-row">
+                <span class="prop-label">Softness</span>
+                <div class="slider-wrap"><input type="range" id="sl-shadow-radius" min="1" max="20" step="0.5" value="3" /></div>
+                <span class="slider-value" id="val-shadow-radius">3</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">Opacity</span>
+                <div class="slider-wrap"><input type="range" id="sl-shadow-opacity" min="0" max="1" step="0.01" value="0.15" /></div>
+                <span class="slider-value" id="val-shadow-opacity">0.15</span>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /tab-lighting -->
+
+        <!-- ====== TAB: EXPORT ====== -->
+        <div class="tab-pane" id="tab-export">
+          <div class="export-section">
+            <div class="export-field-label">Resolution</div>
+            <select class="export-select" id="export-res">
+              <option value="1">1× — Standard</option>
+              <option value="2" selected>2× — Retina</option>
+              <option value="4">4× — High Quality</option>
+            </select>
+            <div class="color-row" style="margin-bottom:8px;">
+              <span class="color-label" style="flex:1;">Export card with shadow only</span>
+              <input type="checkbox" id="export-transparent" style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer;" />
+            </div>
+            <div class="color-row" style="margin-bottom:12px;">
+              <span class="color-label" style="flex:1;">Export card only</span>
+              <input type="checkbox" id="export-card-only" style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer;" />
+            </div>
+            <button class="export-btn" id="export-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export as PNG
+            </button>
+          </div>
+        </div><!-- /tab-export -->
+
+      </div><!-- /panel-body -->
+    </div><!-- /panel -->
+  </div><!-- /workspace -->
+</div><!-- /app -->
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+// ============================================================
+// IMPORTS
+// ============================================================
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ============================================================
+// CARD DIMENSIONS
+// ============================================================
+const CARD_W   = 8.56;
+const CARD_H   = 5.398;
+const CARD_D   = 0.076;
+const CORNER_R = 0.35;
+const TEX_W    = 856;
+const TEX_H    = 540;
+
+// ============================================================
+// RENDERER SETUP
+// ============================================================
+const container = document.getElementById('canvas-container');
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  preserveDrawingBuffer: true,
+  alpha: true,
+  stencil: true,
+});
+renderer.setClearColor(0x000000, 0);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.VSMShadowMap;
+container.appendChild(renderer.domElement);
+
+// ============================================================
+// SCENE & CAMERA
+// ============================================================
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+  35,
+  container.clientWidth / container.clientHeight,
+  0.01,
+  100
+);
+camera.position.set(0, 0, 14);
+
+// ============================================================
+// ORBIT CONTROLS
+// ============================================================
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 4;
+controls.maxDistance = 30;
+controls.zoomSpeed = 2.5;
+controls.target.set(0, 0, 0);
+controls.enableRotate = false;
+
+// ============================================================
+// ENVIRONMENT (RoomEnvironment)
+// ============================================================
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+pmremGenerator.compileEquirectangularShader();
+const envCanvas = document.createElement('canvas');
+envCanvas.width = 256; envCanvas.height = 128;
+const envCtx = envCanvas.getContext('2d');
+const envGrad = envCtx.createLinearGradient(0, 0, 0, 128);
+envGrad.addColorStop(0,   '#909090');
+envGrad.addColorStop(0.4, '#505050');
+envGrad.addColorStop(1,   '#101010');
+envCtx.fillStyle = envGrad;
+envCtx.fillRect(0, 0, 256, 128);
+const envTex = new THREE.CanvasTexture(envCanvas);
+envTex.mapping = THREE.EquirectangularReflectionMapping;
+const envTexture = pmremGenerator.fromEquirectangular(envTex).texture;
+envTex.dispose();
+pmremGenerator.dispose();
+scene.environment = envTexture;
+scene.environmentIntensity = 1.0;
+
+// ============================================================
+// LIGHTS
+// ============================================================
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+scene.add(ambientLight);
+
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
+keyLight.position.set(5, 8, 8);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(1024, 1024);
+keyLight.shadow.camera.near = 0.1;
+keyLight.shadow.camera.far = 50;
+keyLight.shadow.bias = 0.0;
+keyLight.shadow.normalBias = 0.02;
+keyLight.shadow.radius = 3;
+keyLight.shadow.blurSamples = 25;
+scene.add(keyLight);
+
+// Key light spherical coordinates (azimuth/elevation → cartesian)
+const keyLightSphere = { radius: 14, azimuth: 30, elevation: 40 };
+
+// Mirror key light — keeps the back face equally lit when card is flipped
+const backKeyLight = new THREE.DirectionalLight(0xffffff, 2.0);
+scene.add(backKeyLight);
+
+function updateKeyLightPosition() {
+  const az  = keyLightSphere.azimuth  * Math.PI / 180;
+  const el  = keyLightSphere.elevation * Math.PI / 180;
+  const r   = keyLightSphere.radius;
+  const x = r * Math.cos(el) * Math.sin(az);
+  const y = r * Math.sin(el);
+  const z = r * Math.cos(el) * Math.cos(az);
+  keyLight.position.set(x, y,  z);
+  backKeyLight.position.set(x, y, -z); // mirror across Z so back face gets same light quality
+}
+updateKeyLightPosition();
+
+const fillLight = new THREE.DirectionalLight(0x4040ff, 0.8);
+fillLight.position.set(-6, -3, 3);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+rimLight.position.set(0, -8, -8);
+scene.add(rimLight);
+
+// ============================================================
+// DEFAULT CARD TEXTURES (Canvas)
+// ============================================================
+function drawFrontTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width  = TEX_W;
+  canvas.height = TEX_H;
+  const ctx = canvas.getContext('2d');
+
+  // Background gradient
+  const grad = ctx.createLinearGradient(0, 0, TEX_W, TEX_H);
+  grad.addColorStop(0,   '#1a0a2e');
+  grad.addColorStop(0.4, '#0f1f4a');
+  grad.addColorStop(1,   '#0a2e28');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, TEX_W, TEX_H);
+
+  // Decorative blobs
+  function blob(x, y, r, color) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0,   color);
+    g.addColorStop(1,   'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  blob(200,  80, 220, 'rgba(100,60,200,0.25)');
+  blob(680, 440, 200, 'rgba(20,140,180,0.25)');
+  blob(750, 100, 140, 'rgba(140,60,220,0.18)');
+
+  // Subtle diagonal lines
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+  ctx.lineWidth = 1;
+  for (let i = -TEX_H; i < TEX_W + TEX_H; i += 36) {
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + TEX_H, TEX_H);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Chip
+  const chipX = 80, chipY = 160, chipW = 100, chipH = 80;
+  const chipGrad = ctx.createLinearGradient(chipX, chipY, chipX + chipW, chipY + chipH);
+  chipGrad.addColorStop(0,   '#d4af37');
+  chipGrad.addColorStop(0.3, '#f5e06e');
+  chipGrad.addColorStop(0.6, '#c8941a');
+  chipGrad.addColorStop(1,   '#d4af37');
+  ctx.fillStyle = chipGrad;
+  ctx.beginPath();
+  ctx.roundRect(chipX, chipY, chipW, chipH, 6);
+  ctx.fill();
+
+  // Chip lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1.5;
+  [chipY+20, chipY+40, chipY+60].forEach(y => {
+    ctx.beginPath(); ctx.moveTo(chipX+2, y); ctx.lineTo(chipX+chipW-2, y); ctx.stroke();
+  });
+  [chipX+28, chipX+50, chipX+72].forEach(x => {
+    ctx.beginPath(); ctx.moveTo(x, chipY+2); ctx.lineTo(x, chipY+chipH-2); ctx.stroke();
+  });
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillRect(chipX+28, chipY+20, 44, 40);
+
+  // Contactless symbol
+  const cwX = 210, cwY = 192;
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  [18, 28, 38].forEach(r => {
+    ctx.beginPath();
+    ctx.arc(cwX, cwY, r, -Math.PI * 0.65, Math.PI * 0.65);
+    ctx.stroke();
+  });
+  ctx.beginPath();
+  ctx.arc(cwX, cwY, 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fill();
+
+  // Card number
+  ctx.font = 'bold 40px "Courier New", monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.letterSpacing = '4px';
+  ctx.fillText('4532  ••••  ••••  7821', 80, 330);
+
+  // Cardholder name
+  ctx.font = '600 22px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.letterSpacing = '2px';
+  ctx.fillText('CARD HOLDER', 80, 400);
+
+  // Valid thru label
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.letterSpacing = '1px';
+  ctx.fillText('VALID THRU', 80, 440);
+
+  // Expiry
+  ctx.font = '600 20px "Courier New", monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.82)';
+  ctx.letterSpacing = '2px';
+  ctx.fillText('12/28', 80, 464);
+
+  // VISA logo
+  ctx.save();
+  ctx.font = 'bold italic 54px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.letterSpacing = '-1px';
+  ctx.textAlign = 'right';
+  ctx.fillText('VISA', TEX_W - 60, TEX_H - 50);
+  ctx.restore();
+
+  // Decorative top-right arc
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  for (let r = 60; r < 200; r += 25) {
+    ctx.beginPath();
+    ctx.arc(TEX_W - 20, 20, r, 0, Math.PI * 0.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  return canvas;
+}
+
+function drawBackTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width  = TEX_W;
+  canvas.height = TEX_H;
+  const ctx = canvas.getContext('2d');
+
+  // Background gradient
+  const grad = ctx.createLinearGradient(0, 0, TEX_W, TEX_H);
+  grad.addColorStop(0, '#0f0f1e');
+  grad.addColorStop(1, '#1a1a0a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, TEX_W, TEX_H);
+
+  // Subtle texture
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < TEX_H; i += 8) {
+    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(TEX_W, i); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Magnetic stripe
+  const stripeY = 60;
+  const stripeH = 80;
+  ctx.fillStyle = '#1a1008';
+  ctx.fillRect(0, stripeY, TEX_W, stripeH);
+  const stripeSheen = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeH);
+  stripeSheen.addColorStop(0,   'rgba(255,255,255,0.08)');
+  stripeSheen.addColorStop(0.5, 'rgba(255,255,255,0.0)');
+  stripeSheen.addColorStop(1,   'rgba(255,255,255,0.04)');
+  ctx.fillStyle = stripeSheen;
+  ctx.fillRect(0, stripeY, TEX_W, stripeH);
+
+  // Signature strip
+  const sigX = 80, sigY = 190, sigW = TEX_W - 260, sigH = 66;
+  ctx.fillStyle = '#f5f0e8';
+  ctx.beginPath();
+  ctx.roundRect(sigX, sigY, sigW, sigH, 3);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(200,190,170,0.8)';
+  ctx.lineWidth = 1;
+  for (let y = sigY + 14; y < sigY + sigH - 4; y += 11) {
+    ctx.beginPath();
+    ctx.moveTo(sigX + 4, y);
+    ctx.lineTo(sigX + sigW - 4, y);
+    ctx.stroke();
+  }
+
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(100,80,60,0.7)';
+  ctx.fillText('AUTHORIZED SIGNATURE — NOT VALID UNLESS SIGNED', sigX + 8, sigY + 12);
+
+  ctx.strokeStyle = 'rgba(40,20,10,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(sigX + 20, sigY + 40);
+  ctx.bezierCurveTo(sigX+50, sigY+25, sigX+70, sigY+55, sigX+100, sigY+38);
+  ctx.bezierCurveTo(sigX+120, sigY+28, sigX+140, sigY+52, sigX+170, sigY+40);
+  ctx.stroke();
+
+  // CVV box
+  const cvvX = TEX_W - 170, cvvY = 190, cvvW = 90, cvvH = 66;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.roundRect(cvvX, cvvY, cvvW, cvvH, 3);
+  ctx.fill();
+
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(80,60,60,0.6)';
+  ctx.textAlign = 'center';
+  ctx.fillText('CVV', cvvX + cvvW / 2, cvvY + 14);
+
+  ctx.font = 'bold 22px "Courier New", monospace';
+  ctx.fillStyle = '#222';
+  ctx.fillText('•••', cvvX + cvvW / 2, cvvY + 46);
+  ctx.textAlign = 'left';
+
+  // Hologram sticker
+  const holX = TEX_W - 140, holY = 300, holR = 34;
+  const holGrad = ctx.createRadialGradient(holX, holY, 0, holX, holY, holR);
+  holGrad.addColorStop(0,    '#ffffffcc');
+  holGrad.addColorStop(0.2,  '#a0f0ff88');
+  holGrad.addColorStop(0.45, '#f0a0ff66');
+  holGrad.addColorStop(0.7,  '#fff08844');
+  holGrad.addColorStop(1,    'transparent');
+  ctx.fillStyle = holGrad;
+  ctx.beginPath();
+  ctx.arc(holX, holY, holR, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1;
+  for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+    ctx.beginPath();
+    ctx.moveTo(holX, holY);
+    ctx.lineTo(holX + Math.cos(a) * holR, holY + Math.sin(a) * holR);
+    ctx.stroke();
+  }
+
+  // Fine print
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  ctx.fillText('This card is property of the issuing bank. If found, please return to the nearest branch or call +1-800-555-0100.', 40, 310, TEX_W - 80);
+  ctx.fillText('Use of this card is subject to the cardholder agreement. © 2024 CardDesigner Inc. Member FDIC.', 40, 334, TEX_W - 80);
+
+  // Bank logo area
+  ctx.font = 'bold 20px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.fillText('NOVA BANK', 80, 460);
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillText('novabank.com · 1-800-555-0100', 80, 482);
+
+  // Network logo (Mastercard-style)
+  const mcX = TEX_W - 100, mcY = 450;
+  ctx.globalAlpha = 0.8;
+  ctx.fillStyle = '#eb001b';
+  ctx.beginPath(); ctx.arc(mcX - 16, mcY, 22, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f79e1b';
+  ctx.beginPath(); ctx.arc(mcX + 16, mcY, 22, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ff5f00';
+  ctx.beginPath();
+  ctx.arc(mcX - 16, mcY, 22, -Math.PI/3, Math.PI/3);
+  ctx.arc(mcX + 16, mcY, 22, Math.PI - Math.PI/3, Math.PI + Math.PI/3, true);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1.0;
+
+  return canvas;
+}
+
+// ============================================================
+// BUILD CARD GEOMETRY
+// ============================================================
+function buildCardShape() {
+  const w = CARD_W, h = CARD_H, r = CORNER_R;
+  const hw = w / 2, hh = h / 2;
+  const shape = new THREE.Shape();
+  shape.moveTo(-hw + r, -hh);
+  shape.lineTo( hw - r, -hh);
+  shape.quadraticCurveTo( hw, -hh,  hw, -hh + r);
+  shape.lineTo( hw,  hh - r);
+  shape.quadraticCurveTo( hw,  hh,  hw - r,  hh);
+  shape.lineTo(-hw + r,  hh);
+  shape.quadraticCurveTo(-hw,  hh, -hw,  hh - r);
+  shape.lineTo(-hw, -hh + r);
+  shape.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
+  return shape;
+}
+
+function separateCardGroups(geo) {
+  const pos = geo.attributes.position;
+  const nor = geo.attributes.normal;
+  const uvA = geo.attributes.uv;
+  const count = pos.count;
+
+  const p0=[], p1=[], p2=[], n0=[], n1=[], n2=[], u0=[], u1=[], u2=[];
+
+  for (let i = 0; i < count; i += 3) {
+    const nz = (nor.getZ(i) + nor.getZ(i+1) + nor.getZ(i+2)) / 3;
+    const pArr = nz > 0.99 ? p0 : nz < -0.99 ? p1 : p2;
+    const nArr = nz > 0.99 ? n0 : nz < -0.99 ? n1 : n2;
+    const uArr = nz > 0.99 ? u0 : nz < -0.99 ? u1 : u2;
+    for (let j = 0; j < 3; j++) {
+      const k = i + j;
+      pArr.push(pos.getX(k), pos.getY(k), pos.getZ(k));
+      nArr.push(nor.getX(k), nor.getY(k), nor.getZ(k));
+      uArr.push(uvA.getX(k), uvA.getY(k));
+    }
+  }
+
+  const newGeo = new THREE.BufferGeometry();
+  newGeo.setAttribute('position', new THREE.Float32BufferAttribute([...p0,...p1,...p2], 3));
+  newGeo.setAttribute('normal',   new THREE.Float32BufferAttribute([...n0,...n1,...n2], 3));
+  newGeo.setAttribute('uv',       new THREE.Float32BufferAttribute([...u0,...u1,...u2], 2));
+
+  const fc = p0.length / 3, bc = p1.length / 3, sc = p2.length / 3;
+  newGeo.addGroup(0,       fc, 0);
+  newGeo.addGroup(fc,      bc, 1);
+  newGeo.addGroup(fc + bc, sc, 2);
+  return newGeo;
+}
+
+function buildCardGeometry() {
+  const shape = buildCardShape();
+  const extrudeSettings = {
+    depth: CARD_D,
+    bevelEnabled: true,
+    bevelThickness: 0.015,
+    bevelSize: 0.015,
+    bevelSegments: 3,
+  };
+  const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  geo.center();
+  return separateCardGroups(geo);
+}
+
+// ============================================================
+// TEXTURES
+// ============================================================
+function canvasToTexture(canvas) {
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+let frontCanvas = drawFrontTexture();
+let backCanvas  = drawBackTexture();
+let frontTex    = canvasToTexture(frontCanvas);
+let backTex     = canvasToTexture(backCanvas);
+
+function applyUVFix(tex, flipX) {
+  tex.repeat.set(flipX ? -1 / CARD_W : 1 / CARD_W, 1 / CARD_H);
+  tex.offset.set(0.5, 0.5);
+  tex.needsUpdate = true;
+}
+
+applyUVFix(frontTex, false);
+applyUVFix(backTex,  true);
+
+// ============================================================
+// MATERIALS
+// ============================================================
+const matProps = {
+  metalness: 0.1,
+  roughness: 0.3,
+  clearcoat: 0.5,
+  clearcoatRoughness: 0.1,
+  iridescence: 0.0,
+};
+
+function makeMat(map, flipX) {
+  const m = new THREE.MeshPhysicalMaterial({
+    map,
+    metalness: matProps.metalness,
+    roughness: matProps.roughness,
+    clearcoat: matProps.clearcoat,
+    clearcoatRoughness: matProps.clearcoatRoughness,
+    iridescence: matProps.iridescence,
+    iridescenceIOR: 1.5,
+    iridescenceThicknessRange: [100, 800],
+    envMapIntensity: 1.0,
+  });
+  m.stencilWrite = true;
+  m.stencilRef   = 1;
+  m.stencilFunc  = THREE.AlwaysStencilFunc;
+  m.stencilZPass = THREE.ReplaceStencilOp;
+  return m;
+}
+
+const frontMat = makeMat(frontTex, false);
+const backMat  = makeMat(backTex, true);
+const edgeMat  = new THREE.MeshPhysicalMaterial({
+  color: 0x13131f,
+  metalness: matProps.metalness,
+  roughness: Math.min(matProps.roughness + 0.2, 1.0),
+  clearcoat: 0,
+  envMapIntensity: 0.4,
+});
+edgeMat.stencilWrite = true;
+edgeMat.stencilRef   = 1;
+edgeMat.stencilFunc  = THREE.AlwaysStencilFunc;
+edgeMat.stencilZPass = THREE.ReplaceStencilOp;
+
+const materials = [frontMat, backMat, edgeMat];
+
+// ============================================================
+// CARD MESH
+// ============================================================
+const geo  = buildCardGeometry();
+const card = new THREE.Mesh(geo, materials);
+card.castShadow    = true;
+card.receiveShadow = true;
+const TILT_DEFAULTS = { x: 0, y: 0, z: 0 };
+const DEG = Math.PI / 180;
+card.rotation.set(0, 0, 0);
+scene.add(card);
+
+// ============================================================
+// SHADOW FLOOR (invisible)
+// ============================================================
+const floorGeo = new THREE.PlaneGeometry(60, 60);
+const floorMat = new THREE.ShadowMaterial({ opacity: 0.15 });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -4;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// ============================================================
+// BACKGROUND
+// ============================================================
+let currentBg = 'dark';
+
+function makeGradientTexture(colors, angleDeg) {
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const h = size / 2;
+  const rad = (angleDeg - 90) * Math.PI / 180;
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  const x0 = h - h * cos, y0 = h - h * sin;
+  const x1 = h + h * cos, y1 = h + h * sin;
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  colors.forEach((color, i) => g.addColorStop(i / (colors.length - 1), color));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function applyBackground(name) {
+  currentBg = name;
+  switch (name) {
+    case 'dark':
+      scene.background = new THREE.Color(0x0a0a0f);
+      break;
+    case 'studio':
+      scene.background = makeGradientTexture(['#1a1a2e', '#0a0a16'], 180);
+      break;
+    case 'gradient':
+      scene.background = makeGradientTexture(['#13131f', '#4a4af4'], 135);
+      break;
+    case 'white':
+      scene.background = new THREE.Color(0xf0f0f0);
+      break;
+  }
+}
+
+applyBackground('dark');
+
+// ============================================================
+// RESIZE HANDLER
+// ============================================================
+function onResize() {
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(w, h);
+  grainUniforms.resolution.value.set(w, h);
+}
+window.addEventListener('resize', onResize);
+
+// ============================================================
+// GRAIN EFFECT
+// ============================================================
+const grainUniforms = {
+  time:       { value: 0.0 },
+  amount:     { value: 0.0 },
+  resolution: { value: new THREE.Vector2(container.clientWidth, container.clientHeight) },
+};
+
+const grainMat = new THREE.ShaderMaterial({
+  uniforms: grainUniforms,
+  vertexShader: `
+    void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }
+  `,
+  fragmentShader: `
+    uniform float time;
+    uniform float amount;
+    uniform vec2  resolution;
+    float rand(vec2 co) {
+      return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+    void main() {
+      vec2 uv    = gl_FragCoord.xy / resolution;
+      float n    = rand(uv * 600.0 + vec2(time * 11.3, time * 7.7));
+      float grain = (n - 0.5) * amount;
+      gl_FragColor = vec4(grain, grain, grain, 1.0);
+    }
+  `,
+  transparent: true,
+  blending:    THREE.AdditiveBlending,
+  depthTest:   false,
+  depthWrite:  false,
+  stencilWrite: false,
+  stencilRef:   1,
+  stencilFunc:  THREE.EqualStencilFunc,
+});
+
+const grainScene  = new THREE.Scene();
+grainScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), grainMat));
+const grainCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+// ============================================================
+// ANIMATION LOOP
+// ============================================================
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.autoClear = true;
+  renderer.render(scene, camera);
+  if (grainUniforms.amount.value > 0) {
+    grainUniforms.time.value = performance.now() * 0.001;
+    renderer.autoClear = false;
+    renderer.render(grainScene, grainCamera);
+    renderer.autoClear = true;
+  }
+}
+animate();
+
+// ============================================================
+// MATERIAL HELPERS
+// ============================================================
+function syncMaterialProps() {
+  [frontMat, backMat].forEach(m => {
+    m.metalness          = matProps.metalness;
+    m.roughness          = matProps.roughness;
+    m.clearcoat          = matProps.clearcoat;
+    m.clearcoatRoughness = matProps.clearcoatRoughness;
+    m.iridescence        = matProps.iridescence;
+    m.needsUpdate        = true;
+  });
+  edgeMat.metalness = matProps.metalness;
+  edgeMat.roughness = Math.min(matProps.roughness + 0.2, 1.0);
+  edgeMat.needsUpdate = true;
+}
+
+function updateFill(el) {
+  const min = parseFloat(el.min) || 0;
+  const max = parseFloat(el.max) || 1;
+  const pct = ((parseFloat(el.value) - min) / (max - min)) * 100;
+  el.style.setProperty('--pct', pct + '%');
+}
+
+function setSliderAndValue(sliderId, valueId, val) {
+  const sl = document.getElementById(sliderId);
+  const vl = document.getElementById(valueId);
+  sl.value = val;
+  vl.textContent = parseFloat(val).toFixed(1);
+  updateFill(sl);
+}
+
+// ============================================================
+// MATERIAL PRESETS
+// ============================================================
+const MATERIAL_PRESETS = {
+  plastic:      { metalness: 0.1, roughness: 0.3,  clearcoat: 0.5, clearcoatRoughness: 0.1, iridescence: 0.0 },
+  metal:        { metalness: 1.0, roughness: 0.15, clearcoat: 0.8, clearcoatRoughness: 0.05, iridescence: 0.0 },
+  matte:        { metalness: 0.0, roughness: 0.9,  clearcoat: 0.0, clearcoatRoughness: 0.5, iridescence: 0.0 },
+  holographic:  { metalness: 0.5, roughness: 0.1,  clearcoat: 1.0, clearcoatRoughness: 0.05, iridescence: 1.0 },
+};
+
+function applyMaterialPreset(name) {
+  const p = MATERIAL_PRESETS[name];
+  Object.assign(matProps, p);
+  syncMaterialProps();
+  setSliderAndValue('sl-metalness',           'val-metalness',           p.metalness);
+  setSliderAndValue('sl-roughness',           'val-roughness',           p.roughness);
+  setSliderAndValue('sl-clearcoat',           'val-clearcoat',           p.clearcoat);
+  setSliderAndValue('sl-clearcoat-roughness', 'val-clearcoat-roughness', p.clearcoatRoughness);
+  setSliderAndValue('sl-iridescence',         'val-iridescence',         p.iridescence);
+
+  document.querySelectorAll('#material-presets .mat-preset-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.preset === name);
+  });
+}
+
+document.querySelectorAll('#material-presets .mat-preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => applyMaterialPreset(btn.dataset.preset));
+});
+
+// ============================================================
+// MATERIAL SLIDERS
+// ============================================================
+function wireMatSlider(sliderId, valueId, prop) {
+  const sl = document.getElementById(sliderId);
+  const vl = document.getElementById(valueId);
+  sl.addEventListener('input', () => {
+    const v = parseFloat(sl.value);
+    vl.textContent = v.toFixed(2).replace(/\.?0+$/, '') || '0';
+    matProps[prop] = v;
+    syncMaterialProps();
+    document.querySelectorAll('#material-presets .mat-preset-btn').forEach(b => b.classList.remove('active'));
+  });
+}
+
+wireMatSlider('sl-metalness',           'val-metalness',           'metalness');
+wireMatSlider('sl-roughness',           'val-roughness',           'roughness');
+wireMatSlider('sl-clearcoat',           'val-clearcoat',           'clearcoat');
+wireMatSlider('sl-clearcoat-roughness', 'val-clearcoat-roughness', 'clearcoatRoughness');
+wireMatSlider('sl-iridescence',         'val-iridescence',         'iridescence');
+
+// Grain slider
+{
+  const sl = document.getElementById('sl-grain');
+  const vl = document.getElementById('val-grain');
+  sl.addEventListener('input', () => {
+    const v = parseFloat(sl.value);
+    vl.textContent = v.toFixed(2).replace(/\.?0+$/, '') || '0';
+    grainUniforms.amount.value = v;
+  });
+}
+
+// ============================================================
+// LIGHTING SLIDERS & COLOR PICKERS
+// ============================================================
+function wireSlider(sliderId, valueId, onChange) {
+  const sl = document.getElementById(sliderId);
+  const vl = document.getElementById(valueId);
+  sl.addEventListener('input', () => {
+    const v = parseFloat(sl.value);
+    vl.textContent = v.toFixed(1);
+    onChange(v);
+  });
+}
+
+wireSlider('sl-ambient', 'val-ambient', v => { ambientLight.intensity = v; });
+wireSlider('sl-key',     'val-key',     v => { keyLight.intensity = v; backKeyLight.intensity = v; });
+wireSlider('sl-fill',    'val-fill',    v => { fillLight.intensity = v; });
+wireSlider('sl-rim',     'val-rim',     v => { rimLight.intensity = v; });
+wireSlider('sl-env',     'val-env',     v => { scene.environmentIntensity = v; });
+
+// Key light position
+{
+  const slAz = document.getElementById('sl-key-azimuth');
+  const vlAz = document.getElementById('val-key-azimuth');
+  slAz.addEventListener('input', () => {
+    vlAz.textContent = slAz.value + '°';
+    keyLightSphere.azimuth = parseFloat(slAz.value);
+    updateKeyLightPosition();
+  });
+
+  const slEl = document.getElementById('sl-key-elevation');
+  const vlEl = document.getElementById('val-key-elevation');
+  slEl.addEventListener('input', () => {
+    vlEl.textContent = slEl.value + '°';
+    keyLightSphere.elevation = parseFloat(slEl.value);
+    updateKeyLightPosition();
+  });
+}
+
+// Shadow
+wireSlider('sl-shadow-radius',  'val-shadow-radius',  v => { keyLight.shadow.radius = v; keyLight.shadow.needsUpdate = true; });
+wireSlider('sl-shadow-opacity', 'val-shadow-opacity', v => { floorMat.opacity = v; });
+
+document.getElementById('col-key').addEventListener('input', e => {
+  keyLight.color.set(e.target.value);
+  backKeyLight.color.set(e.target.value);
+});
+document.getElementById('col-fill').addEventListener('input', e => {
+  fillLight.color.set(e.target.value);
+});
+
+// ============================================================
+// BACKGROUND PRESETS
+// ============================================================
+document.querySelectorAll('#bg-presets .bg-preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    applyBackground(btn.dataset.bg);
+    document.querySelectorAll('#bg-presets .bg-preset-btn').forEach(b =>
+      b.classList.toggle('active', b === btn)
+    );
+    document.getElementById('bg-mode-solid').classList.remove('active');
+    document.getElementById('bg-mode-gradient').classList.remove('active');
+  });
+});
+
+// ============================================================
+// CUSTOM BACKGROUND
+// ============================================================
+let customBgMode = 'solid';
+let gradStops = ['#13131f', '#4a4af4'];
+
+function linkColorHex(colorId, hexId, onChange) {
+  const colorEl = document.getElementById(colorId);
+  const hexEl   = document.getElementById(hexId);
+
+  colorEl.addEventListener('input', () => {
+    hexEl.value = colorEl.value.toUpperCase();
+    hexEl.classList.remove('invalid');
+    onChange();
+  });
+
+  hexEl.addEventListener('input', () => {
+    let v = hexEl.value.trim();
+    if (!v.startsWith('#')) v = '#' + v;
+    const valid = /^#[0-9a-fA-F]{6}$/.test(v);
+    hexEl.classList.toggle('invalid', !valid);
+    if (valid) {
+      colorEl.value = v.toLowerCase();
+      onChange();
+    }
+  });
+
+  hexEl.addEventListener('blur', () => {
+    hexEl.value = colorEl.value.toUpperCase();
+    hexEl.classList.remove('invalid');
+  });
+}
+
+function deactivatePresets() {
+  document.querySelectorAll('#bg-presets .bg-preset-btn').forEach(b => b.classList.remove('active'));
+}
+
+function applyCustomSolid() {
+  const hex = document.getElementById('bg-solid-color').value;
+  scene.background = new THREE.Color(hex);
+}
+
+function applyCustomGradient() {
+  const angle = parseInt(document.getElementById('bg-grad-angle').value, 10);
+  scene.background = makeGradientTexture(gradStops, angle);
+}
+
+function applyCustomBg() {
+  deactivatePresets();
+  if (customBgMode === 'solid') applyCustomSolid();
+  else applyCustomGradient();
+}
+
+document.getElementById('bg-mode-solid').addEventListener('click', () => {
+  customBgMode = 'solid';
+  document.getElementById('bg-mode-solid').classList.add('active');
+  document.getElementById('bg-mode-gradient').classList.remove('active');
+  document.getElementById('bg-solid-controls').style.display = '';
+  document.getElementById('bg-gradient-controls').style.display = 'none';
+  applyCustomBg();
+});
+
+document.getElementById('bg-mode-gradient').addEventListener('click', () => {
+  customBgMode = 'gradient';
+  document.getElementById('bg-mode-gradient').classList.add('active');
+  document.getElementById('bg-mode-solid').classList.remove('active');
+  document.getElementById('bg-solid-controls').style.display = 'none';
+  document.getElementById('bg-gradient-controls').style.display = '';
+  applyCustomBg();
+});
+
+linkColorHex('bg-solid-color', 'bg-solid-hex', () => {
+  customBgMode = 'solid';
+  document.getElementById('bg-mode-solid').classList.add('active');
+  document.getElementById('bg-mode-gradient').classList.remove('active');
+  applyCustomBg();
+});
+
+function renderGradStops() {
+  const container = document.getElementById('grad-stops-container');
+  container.innerHTML = '';
+  gradStops.forEach((color, i) => {
+    const row = document.createElement('div');
+    row.className = 'color-row';
+    row.innerHTML = `
+      <span class="color-label">Color ${i + 1}</span>
+      <input type="color" value="${color}" data-idx="${i}" />
+      <input type="text" class="hex-input" value="${color.toUpperCase()}" maxlength="7" data-idx="${i}" />
+      ${gradStops.length > 2 ? `<button class="remove-stop-btn" data-idx="${i}">✕</button>` : ''}
+    `;
+    const colorEl = row.querySelector('input[type="color"]');
+    const hexEl   = row.querySelector('.hex-input');
+    colorEl.addEventListener('input', () => {
+      gradStops[i] = colorEl.value;
+      hexEl.value = colorEl.value.toUpperCase();
+      customBgMode = 'gradient'; applyCustomBg();
+    });
+    hexEl.addEventListener('input', () => {
+      let v = hexEl.value.trim();
+      if (!v.startsWith('#')) v = '#' + v;
+      const valid = /^#[0-9a-fA-F]{6}$/.test(v);
+      hexEl.classList.toggle('invalid', !valid);
+      if (valid) { gradStops[i] = v; colorEl.value = v; customBgMode = 'gradient'; applyCustomBg(); }
+    });
+    hexEl.addEventListener('blur', () => { hexEl.value = gradStops[i].toUpperCase(); hexEl.classList.remove('invalid'); });
+    const removeBtn = row.querySelector('.remove-stop-btn');
+    if (removeBtn) removeBtn.addEventListener('click', () => {
+      gradStops.splice(i, 1);
+      renderGradStops();
+      customBgMode = 'gradient'; applyCustomBg();
+    });
+    container.appendChild(row);
+  });
+}
+
+{
+  const sl = document.getElementById('bg-grad-angle');
+  const vl = document.getElementById('val-bg-grad-angle');
+  sl.addEventListener('input', () => {
+    vl.textContent = sl.value + '°';
+    customBgMode = 'gradient';
+    applyCustomBg();
+  });
+}
+
+document.getElementById('bg-grad-add-stop').addEventListener('click', () => {
+  gradStops.push('#ffffff');
+  renderGradStops();
+  customBgMode = 'gradient';
+  applyCustomBg();
+});
+
+renderGradStops();
+
+// ============================================================
+// CARD TILT
+// ============================================================
+['x', 'y', 'z'].forEach(axis => {
+  const sl = document.getElementById(`sl-tilt-${axis}`);
+  const vl = document.getElementById(`val-tilt-${axis}`);
+  sl.addEventListener('input', () => {
+    vl.textContent = sl.value + '°';
+    card.rotation[axis] = parseFloat(sl.value) * DEG;
+  });
+});
+
+document.getElementById('btn-reset-tilt').addEventListener('click', () => {
+  ['x', 'y', 'z'].forEach(axis => {
+    const val = TILT_DEFAULTS[axis];
+    const sl = document.getElementById(`sl-tilt-${axis}`);
+    document.getElementById(`val-tilt-${axis}`).textContent = val + '°';
+    sl.value = val;
+    updateFill(sl);
+    card.rotation[axis] = val * DEG;
+  });
+});
+
+function syncRotationUI() {
+  ['x', 'y', 'z'].forEach(axis => {
+    const deg = Math.round(card.rotation[axis] / DEG);
+    const clamped = Math.max(-180, Math.min(180, deg));
+    const sl = document.getElementById(`sl-tilt-${axis}`);
+    sl.value = clamped;
+    document.getElementById(`val-tilt-${axis}`).textContent = clamped + '°';
+    updateFill(sl);
+  });
+}
+
+// Drag on canvas rotates the card and reflects in sliders
+{
+  let dragging = false, lastX = 0, lastY = 0;
+  renderer.domElement.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    renderer.domElement.setPointerCapture(e.pointerId);
+  });
+  renderer.domElement.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    card.rotation.y += dx * 0.005;
+    card.rotation.x += dy * 0.005;
+    card.rotation.x = Math.max(-Math.PI, Math.min(Math.PI, card.rotation.x));
+    card.rotation.y = Math.max(-Math.PI, Math.min(Math.PI, card.rotation.y));
+    syncRotationUI();
+  });
+  renderer.domElement.addEventListener('pointerup', () => { dragging = false; });
+  renderer.domElement.addEventListener('pointercancel', () => { dragging = false; });
+}
+
+// ============================================================
+// PANEL RESIZE
+// ============================================================
+{
+  const panel  = document.getElementById('panel');
+  const handle = document.getElementById('panel-resize-handle');
+  let resizing = false, startX = 0, startW = 0;
+
+  handle.addEventListener('pointerdown', e => {
+    resizing = true;
+    startX = e.clientX;
+    startW = panel.offsetWidth;
+    handle.classList.add('dragging');
+    handle.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  handle.addEventListener('pointermove', e => {
+    if (!resizing) return;
+    const dx = startX - e.clientX; // dragging left = wider
+    const newW = Math.min(600, Math.max(200, startW + dx));
+    panel.style.width = newW + 'px';
+  });
+
+  handle.addEventListener('pointerup', () => {
+    resizing = false;
+    handle.classList.remove('dragging');
+  });
+
+  handle.addEventListener('pointercancel', () => {
+    resizing = false;
+    handle.classList.remove('dragging');
+  });
+}
+
+// ============================================================
+// IMAGE UPLOAD
+// ============================================================
+function handleUpload(inputId, thumbImgId, isBack) {
+  document.getElementById(inputId).addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const thumbImg = document.getElementById(thumbImgId);
+      thumbImg.src = url;
+      thumbImg.classList.add('has-image');
+
+      const c = document.createElement('canvas');
+      c.width  = TEX_W;
+      c.height = TEX_H;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, TEX_W, TEX_H);
+
+      if (isBack) {
+        backTex.image = c;
+        backTex.needsUpdate = true;
+        applyUVFix(backTex, true);
+        backMat.map = backTex;
+      } else {
+        frontTex.image = c;
+        frontTex.needsUpdate = true;
+        applyUVFix(frontTex, false);
+        frontMat.map = frontTex;
+      }
+      frontMat.needsUpdate = true;
+      backMat.needsUpdate  = true;
+    };
+    img.src = url;
+  });
+}
+
+handleUpload('upload-front', 'thumb-front-img', false);
+handleUpload('upload-back',  'thumb-back-img',  true);
+
+(function setDefaultThumbs() {
+  const fImg = document.getElementById('thumb-front-img');
+  fImg.src = frontCanvas.toDataURL();
+  fImg.classList.add('has-image');
+  const bImg = document.getElementById('thumb-back-img');
+  bImg.src = backCanvas.toDataURL();
+  bImg.classList.add('has-image');
+})();
+
+// ============================================================
+// EXPORT PNG
+// ============================================================
+function doExport() {
+  const multiplier  = parseInt(document.getElementById('export-res').value, 10);
+  const withShadow  = document.getElementById('export-transparent').checked;
+  const cardOnly    = document.getElementById('export-card-only').checked;
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+
+  renderer.setPixelRatio(1);
+  renderer.setSize(w * multiplier, h * multiplier);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+
+  const savedBg = scene.background;
+  if (withShadow || cardOnly) scene.background = null;
+  if (cardOnly) floor.visible = false;
+
+  renderer.autoClear = true;
+  renderer.render(scene, camera);
+
+  if (!withShadow && !cardOnly && grainUniforms.amount.value > 0) {
+    renderer.autoClear = false;
+    renderer.render(grainScene, grainCamera);
+    renderer.autoClear = true;
+  }
+
+  if (withShadow || cardOnly) scene.background = savedBg;
+  if (cardOnly) floor.visible = true;
+
+  const suffix = cardOnly ? '-card-only' : withShadow ? '-with-shadow' : '';
+  const dataUrl = renderer.domElement.toDataURL('image/png');
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(w, h);
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = `card-design-${multiplier}x${suffix}.png`;
+  a.click();
+}
+
+document.getElementById('export-transparent').addEventListener('change', e => {
+  if (e.target.checked) document.getElementById('export-card-only').checked = false;
+});
+document.getElementById('export-card-only').addEventListener('change', e => {
+  if (e.target.checked) document.getElementById('export-transparent').checked = false;
+});
+
+document.getElementById('export-btn').addEventListener('click', doExport);
+document.getElementById('export-top-btn').addEventListener('click', doExport);
+
+// ============================================================
+// SPLINE-STYLE UI ENHANCEMENTS
+// ============================================================
+
+// Slider fill initialization
+document.querySelectorAll('input[type="range"]').forEach(sl => {
+  updateFill(sl);
+  sl.addEventListener('input', () => updateFill(sl));
+});
+
+// Tab switching
+document.querySelectorAll('.panel-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// Collapsible sections
+document.querySelectorAll('.section-header').forEach(header => {
+  header.addEventListener('click', () => {
+    header.closest('.section').classList.toggle('collapsed');
+  });
+});
+
+// Camera view presets
+const VIEW_PRESETS = {
+  perspective: { pos: [0, 0, 14],    target: [0, 0, 0] },
+  front:       { pos: [0, 0, 14],    target: [0, 0, 0] },
+  top:         { pos: [0, 14, 0.01], target: [0, 0, 0] },
+  side:        { pos: [14, 0, 0],    target: [0, 0, 0] },
+};
+
+function setCameraView(name) {
+  document.querySelectorAll('.view-btn[data-view]').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === name)
+  );
+  const v = VIEW_PRESETS[name];
+  camera.position.set(...v.pos);
+  controls.target.set(...v.target);
+  controls.update();
+}
+
+document.querySelectorAll('.view-btn[data-view]').forEach(btn => {
+  btn.addEventListener('click', () => setCameraView(btn.dataset.view));
+});
+
+document.getElementById('btn-reset-camera').addEventListener('click', () => {
+  setCameraView('perspective');
+});
+
+// ============================================================
+// DISPLACEMENT — NORMAL MAP (EMBOSS / DEBOSS)
+// ============================================================
+
+// Convert a grayscale height map to a tangent-space normal map
+// using a Sobel filter so edges get proper light/shadow.
+function heightToNormalMap(img) {
+  const w = TEX_W, h = TEX_H;
+
+  const srcC = document.createElement('canvas');
+  srcC.width = w; srcC.height = h;
+  srcC.getContext('2d').drawImage(img, 0, 0, w, h);
+  const src = srcC.getContext('2d').getImageData(0, 0, w, h).data;
+
+  const outC = document.createElement('canvas');
+  outC.width = w; outC.height = h;
+  const outCtx = outC.getContext('2d');
+  const out = outCtx.createImageData(w, h);
+  const d = out.data;
+
+  // Sample luminance from source pixels
+  function lum(x, y) {
+    x = Math.max(0, Math.min(w - 1, x));
+    y = Math.max(0, Math.min(h - 1, y));
+    const i = (y * w + x) * 4;
+    return (0.299 * src[i] + 0.587 * src[i + 1] + 0.114 * src[i + 2]) / 255;
+  }
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      // 3×3 Sobel kernel
+      const tl = lum(x-1,y-1), tm = lum(x,y-1), tr = lum(x+1,y-1);
+      const ml = lum(x-1,y  ),                   mr = lum(x+1,y  );
+      const bl = lum(x-1,y+1), bm = lum(x,y+1), br = lum(x+1,y+1);
+
+      const gx = (tr + 2*mr + br) - (tl + 2*ml + bl);
+      const gy = (tl + 2*tm + tr) - (bl + 2*bm + br);
+      const gz = 1.0; // lower = sharper normals
+
+      const len = Math.sqrt(gx*gx + gy*gy + gz*gz);
+      const i = (y * w + x) * 4;
+      d[i]   = ((-gx / len) * 0.5 + 0.5) * 255 | 0;
+      d[i+1] = ((-gy / len) * 0.5 + 0.5) * 255 | 0;
+      d[i+2] = (( gz / len) * 0.5 + 0.5) * 255 | 0;
+      d[i+3] = 255;
+    }
+  }
+
+  outCtx.putImageData(out, 0, 0);
+  return outC;
+}
+
+function makeNormalTex(normalCanvas, flipX) {
+  const tex = new THREE.CanvasTexture(normalCanvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  applyUVFix(tex, flipX);
+  return tex;
+}
+
+function applyDisplacementDepth(v) {
+  if (frontMat.normalMap) { frontMat.normalScale.set(v, v);   frontMat.needsUpdate = true; }
+  if (backMat.normalMap)  { backMat.normalScale.set(-v, v);   backMat.needsUpdate  = true; }
+}
+
+{
+  const sl = document.getElementById('sl-bump-scale');
+  const vl = document.getElementById('val-bump-scale');
+
+  sl.addEventListener('input', () => {
+    const v = parseFloat(sl.value);
+    vl.textContent = v.toFixed(2);
+    applyDisplacementDepth(v);
+    updateFill(sl);
+  });
+
+  function handleBumpUpload(inputId, thumbImgId, isBack) {
+    document.getElementById(inputId).addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        document.getElementById(thumbImgId).src = url;
+        document.getElementById(thumbImgId).classList.add('has-image');
+
+        const normalCanvas = heightToNormalMap(img);
+        const tex = makeNormalTex(normalCanvas, isBack);
+        const mat = isBack ? backMat : frontMat;
+        mat.normalMap = tex;
+        mat.normalMapType = THREE.TangentSpaceNormalMap;
+        mat.normalScale.set(parseFloat(sl.value), parseFloat(sl.value));
+        mat.needsUpdate = true;
+      };
+      img.src = url;
+    });
+  }
+
+  handleBumpUpload('upload-bump-front', 'thumb-bump-front-img', false);
+  handleBumpUpload('upload-bump-back',  'thumb-bump-back-img',  true);
+
+  document.getElementById('btn-clear-bump-front').addEventListener('click', () => {
+    frontMat.normalMap = null; frontMat.needsUpdate = true;
+    const img = document.getElementById('thumb-bump-front-img');
+    img.src = ''; img.classList.remove('has-image');
+  });
+
+  document.getElementById('btn-clear-bump-back').addEventListener('click', () => {
+    backMat.normalMap = null; backMat.needsUpdate = true;
+    const img = document.getElementById('thumb-bump-back-img');
+    img.src = ''; img.classList.remove('has-image');
+  });
+}
+
+// Initial material preset
+applyMaterialPreset('plastic');
+
+</script>
+</body>
+</html>
