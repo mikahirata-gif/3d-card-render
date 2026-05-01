@@ -223,39 +223,6 @@
     .xyz-axis.y { background: rgba(85,200,85,0.18); color: #72d672; border: 1px solid rgba(85,200,85,0.22); }
     .xyz-axis.z { background: rgba(85,150,255,0.18); color: #72acff; border: 1px solid rgba(85,150,255,0.22); }
 
-    /* ===== MATERIAL PRESETS ===== */
-    .mat-preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 4px; }
-
-    .mat-preset-btn {
-      position: relative; height: 66px; border-radius: 12px;
-      border: 1px solid var(--border);
-      background: var(--glass-2); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
-      cursor: pointer; overflow: hidden; transition: all 0.18s;
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: flex-end; padding-bottom: 7px;
-      box-shadow: var(--inner-hi);
-    }
-    .mat-preset-btn:hover {
-      border-color: var(--border-light); transform: translateY(-2px);
-      box-shadow: 0 10px 28px rgba(0,0,0,0.3), var(--inner-hi);
-    }
-    .mat-preset-btn.active {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px var(--accent), 0 8px 24px rgba(124,106,245,0.22), var(--inner-hi);
-    }
-
-    .mat-sphere {
-      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-      width: 30px; height: 30px; border-radius: 50%; pointer-events: none;
-    }
-    .mat-sphere.plastic { background: radial-gradient(circle at 35% 32%, #8878ff, #1a1a3e 70%); box-shadow: 3px 4px 10px rgba(0,0,0,0.6), inset -1px -2px 3px rgba(0,0,0,0.4); }
-    .mat-sphere.metal   { background: radial-gradient(circle at 35% 32%, #e0e0e8, #606070 70%); box-shadow: 3px 4px 10px rgba(0,0,0,0.6); }
-    .mat-sphere.matte   { background: radial-gradient(circle at 42% 40%, #3e3e52, #1a1a28 70%); box-shadow: 2px 3px 8px rgba(0,0,0,0.5); }
-    .mat-sphere.holographic { background: conic-gradient(from 0deg, #f0f, #0ff, #ff0, #0f0, #f0f); box-shadow: 3px 4px 10px rgba(0,0,0,0.5); }
-
-    .mat-preset-label { font-size: 10px; font-weight: 500; color: var(--text-muted); position: relative; z-index: 1; }
-    .mat-preset-btn.active .mat-preset-label { color: var(--accent); }
-
     /* ===== UPLOAD ===== */
     .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 2px; }
     .upload-item { display: flex; flex-direction: column; gap: 5px; }
@@ -326,7 +293,7 @@
     .seg-btn.active { background: rgba(255,255,255,0.10); color: var(--text); box-shadow: var(--inner-hi); }
 
     /* ===== MISC ===== */
-    .sub-label { font-size: 9.5px; color: var(--text-dim); letter-spacing: 0.01em; margin: 8px 0 7px; }
+    .sub-label { font-size: 11px; font-weight: 600; color: var(--text); letter-spacing: 0.01em; margin: 8px 0 7px; }
     .sub-divider { height: 1px; background: var(--border); margin: 10px 0; }
 
     .add-stop-btn {
@@ -405,6 +372,22 @@
       box-shadow: 0 6px 30px rgba(74,74,244,0.45), var(--inner-hi);
     }
     .export-btn:active { transform: scale(0.98); }
+
+    /* ===== CANVAS DRAG-OVER ===== */
+    #canvas-container { position: relative; }
+    #canvas-container.drag-over canvas { opacity: 0.45; transition: opacity 0.1s; }
+    #canvas-drop-indicator {
+      position: absolute; inset: 16px; border: 2px dashed var(--accent);
+      border-radius: 12px; pointer-events: none; opacity: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: var(--accent); transition: opacity 0.15s;
+      z-index: 7; background: rgba(124,106,245,0.06);
+    }
+    #canvas-container.drag-over #canvas-drop-indicator { opacity: 1; }
+    #gltf-panel-drop.drag-over {
+      border-color: var(--accent); background: rgba(124,106,245,0.10);
+      box-shadow: 0 0 18px rgba(124,106,245,0.20);
+    }
   </style>
 </head>
 <body>
@@ -444,6 +427,7 @@
 
     <!-- 3D Canvas -->
     <div id="canvas-container">
+      <div id="canvas-drop-indicator">Drop GLTF / GLB to load</div>
       <div id="canvas-hint">
         <span class="hint-item"><span class="hint-key">drag</span> Rotate</span>
         <span class="hint-dot"></span>
@@ -482,144 +466,21 @@
           <div class="section">
             <div class="section-header">
               <div class="section-header-left">
-                Card design
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                Model
               </div>
               <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
             <div class="section-body">
-              <div class="upload-grid">
-                <div class="upload-item">
-                  <div class="upload-item-label">Front</div>
-                  <label class="upload-btn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.45"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    <span>Upload</span>
-                    <input type="file" id="upload-front" accept="image/*" />
-                  </label>
-                  <div class="upload-thumb" id="thumb-front"><img id="thumb-front-img" alt="Front" /></div>
-                </div>
-                <div class="upload-item">
-                  <div class="upload-item-label">Back</div>
-                  <label class="upload-btn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.45"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    <span>Upload</span>
-                    <input type="file" id="upload-back" accept="image/*" />
-                  </label>
-                  <div class="upload-thumb" id="thumb-back"><img id="thumb-back-img" alt="Back" /></div>
-                </div>
-              </div>
+              <label class="upload-btn" id="gltf-panel-drop" style="height:76px;flex-direction:column;gap:6px;position:relative;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                <span>Drop GLTF / GLB here or click to browse</span>
+                <span id="gltf-panel-name" style="font-size:9.5px;color:var(--text-dim);">No model loaded</span>
+                <input type="file" id="panel-gltf-input" accept=".gltf,.glb" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+              </label>
             </div>
           </div>
 
-          <div class="section">
-            <div class="section-header">
-              <div class="section-header-left">Displacement</div>
-              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div class="section-body">
-              <div class="upload-grid">
-                <div class="upload-item">
-                  <div class="upload-item-label">Front Map</div>
-                  <label class="upload-btn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.45"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    <span>Upload</span>
-                    <input type="file" id="upload-bump-front" accept="image/*" />
-                  </label>
-                  <div class="upload-thumb" id="thumb-bump-front"><img id="thumb-bump-front-img" alt="" /></div>
-                </div>
-                <div class="upload-item">
-                  <div class="upload-item-label">Back Map</div>
-                  <label class="upload-btn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.45"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    <span>Upload</span>
-                    <input type="file" id="upload-bump-back" accept="image/*" />
-                  </label>
-                  <div class="upload-thumb" id="thumb-bump-back"><img id="thumb-bump-back-img" alt="" /></div>
-                </div>
-              </div>
-              <div class="prop-row" style="margin-top:6px;">
-                <span class="prop-label">Depth</span>
-                <div class="slider-wrap"><input type="range" id="sl-bump-scale" min="-8" max="8" step="0.1" value="1" /></div>
-                <span class="slider-value" id="val-bump-scale">1.0</span>
-              </div>
-              <div style="display:flex;gap:6px;margin-top:4px;">
-                <button class="reset-btn" id="btn-clear-bump-front" style="flex:1;">Clear Front</button>
-                <button class="reset-btn" id="btn-clear-bump-back" style="flex:1;">Clear Back</button>
-              </div>
-              <div style="font-size:10px;color:var(--text-dim);margin-top:8px;line-height:1.5;">
-                White = raised · Black = depressed<br>Negative depth = invert (deboss)
-              </div>
-            </div>
-          </div>
-
-          <div class="section">
-            <div class="section-header">
-              <div class="section-header-left">
-                Presets
-              </div>
-              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div class="section-body">
-              <div class="mat-preset-grid" id="material-presets">
-                <button class="mat-preset-btn active" data-preset="plastic">
-                  <div class="mat-sphere plastic"></div>
-                  <span class="mat-preset-label">Plastic</span>
-                </button>
-                <button class="mat-preset-btn" data-preset="metal">
-                  <div class="mat-sphere metal"></div>
-                  <span class="mat-preset-label">Metal</span>
-                </button>
-                <button class="mat-preset-btn" data-preset="matte">
-                  <div class="mat-sphere matte"></div>
-                  <span class="mat-preset-label">Matte</span>
-                </button>
-                <button class="mat-preset-btn" data-preset="holographic">
-                  <div class="mat-sphere holographic"></div>
-                  <span class="mat-preset-label">Holo</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="section">
-            <div class="section-header">
-              <div class="section-header-left">
-                Properties
-              </div>
-              <svg class="section-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div class="section-body">
-              <div class="prop-row">
-                <span class="prop-label">Metalness</span>
-                <div class="slider-wrap"><input type="range" id="sl-metalness" min="0" max="1" step="0.01" value="0.1" /></div>
-                <span class="slider-value" id="val-metalness">0.1</span>
-              </div>
-              <div class="prop-row">
-                <span class="prop-label">Roughness</span>
-                <div class="slider-wrap"><input type="range" id="sl-roughness" min="0" max="1" step="0.01" value="0.3" /></div>
-                <span class="slider-value" id="val-roughness">0.3</span>
-              </div>
-              <div class="prop-row">
-                <span class="prop-label">Clearcoat</span>
-                <div class="slider-wrap"><input type="range" id="sl-clearcoat" min="0" max="1" step="0.01" value="0.5" /></div>
-                <span class="slider-value" id="val-clearcoat">0.5</span>
-              </div>
-              <div class="prop-row">
-                <span class="prop-label">CC Roughness</span>
-                <div class="slider-wrap"><input type="range" id="sl-clearcoat-roughness" min="0" max="1" step="0.01" value="0.1" /></div>
-                <span class="slider-value" id="val-clearcoat-roughness">0.1</span>
-              </div>
-              <div class="prop-row">
-                <span class="prop-label">Iridescence</span>
-                <div class="slider-wrap"><input type="range" id="sl-iridescence" min="0" max="1" step="0.01" value="0.0" /></div>
-                <span class="slider-value" id="val-iridescence">0.0</span>
-              </div>
-              <div class="prop-row">
-                <span class="prop-label">Grain</span>
-                <div class="slider-wrap"><input type="range" id="sl-grain" min="0" max="0.12" step="0.005" value="0" /></div>
-                <span class="slider-value" id="val-grain">0</span>
-              </div>
-            </div>
-          </div>
 
         </div><!-- /tab-design -->
 
@@ -736,7 +597,7 @@
                 <input type="color" id="col-key" value="#ffffff" />
               </div>
               <div class="sub-divider"></div>
-              <div class="sub-label">Position</div>
+              <div class="sub-label">Light Position</div>
               <div class="prop-row">
                 <span class="prop-label">Angle</span>
                 <div class="slider-wrap"><input type="range" id="sl-key-azimuth" min="0" max="360" step="1" value="30" /></div>
@@ -768,8 +629,8 @@
                 <input type="color" id="col-fill" value="#4040ff" />
               </div>
               <div class="sub-divider"></div>
+              <div class="sub-label">Rim</div>
               <div class="prop-row">
-                <span class="prop-label">Rim</span>
                 <div class="slider-wrap"><input type="range" id="sl-rim" min="0" max="3" step="0.05" value="0.5" /></div>
                 <span class="slider-value" id="val-rim">0.5</span>
               </div>
@@ -843,16 +704,12 @@
 // ============================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js';
 
 // ============================================================
 // CARD DIMENSIONS
 // ============================================================
-const CARD_W   = 8.56;
-const CARD_H   = 5.398;
-const CARD_D   = 0.076;
-const CORNER_R = 0.35;
-const TEX_W    = 856;
-const TEX_H    = 540;
+const CARD_W = 8.56;   // scene units — used to scale the GLTF model
 
 // ============================================================
 // RENDERER SETUP
@@ -965,381 +822,16 @@ scene.add(fillLight);
 const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
 rimLight.position.set(0, -8, -8);
 scene.add(rimLight);
-
-// ============================================================
-// DEFAULT CARD TEXTURES (Canvas)
-// ============================================================
-function drawFrontTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width  = TEX_W;
-  canvas.height = TEX_H;
-  const ctx = canvas.getContext('2d');
-
-  // Background gradient
-  const grad = ctx.createLinearGradient(0, 0, TEX_W, TEX_H);
-  grad.addColorStop(0,   '#1a0a2e');
-  grad.addColorStop(0.4, '#0f1f4a');
-  grad.addColorStop(1,   '#0a2e28');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, TEX_W, TEX_H);
-
-  // Decorative blobs
-  function blob(x, y, r, color) {
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0,   color);
-    g.addColorStop(1,   'transparent');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  blob(200,  80, 220, 'rgba(100,60,200,0.25)');
-  blob(680, 440, 200, 'rgba(20,140,180,0.25)');
-  blob(750, 100, 140, 'rgba(140,60,220,0.18)');
-
-  // Subtle diagonal lines
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.035)';
-  ctx.lineWidth = 1;
-  for (let i = -TEX_H; i < TEX_W + TEX_H; i += 36) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i + TEX_H, TEX_H);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // Chip
-  const chipX = 80, chipY = 160, chipW = 100, chipH = 80;
-  const chipGrad = ctx.createLinearGradient(chipX, chipY, chipX + chipW, chipY + chipH);
-  chipGrad.addColorStop(0,   '#d4af37');
-  chipGrad.addColorStop(0.3, '#f5e06e');
-  chipGrad.addColorStop(0.6, '#c8941a');
-  chipGrad.addColorStop(1,   '#d4af37');
-  ctx.fillStyle = chipGrad;
-  ctx.beginPath();
-  ctx.roundRect(chipX, chipY, chipW, chipH, 6);
-  ctx.fill();
-
-  // Chip lines
-  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-  ctx.lineWidth = 1.5;
-  [chipY+20, chipY+40, chipY+60].forEach(y => {
-    ctx.beginPath(); ctx.moveTo(chipX+2, y); ctx.lineTo(chipX+chipW-2, y); ctx.stroke();
-  });
-  [chipX+28, chipX+50, chipX+72].forEach(x => {
-    ctx.beginPath(); ctx.moveTo(x, chipY+2); ctx.lineTo(x, chipY+chipH-2); ctx.stroke();
-  });
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
-  ctx.fillRect(chipX+28, chipY+20, 44, 40);
-
-  // Contactless symbol
-  const cwX = 210, cwY = 192;
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-  ctx.lineWidth = 3;
-  ctx.lineCap = 'round';
-  [18, 28, 38].forEach(r => {
-    ctx.beginPath();
-    ctx.arc(cwX, cwY, r, -Math.PI * 0.65, Math.PI * 0.65);
-    ctx.stroke();
-  });
-  ctx.beginPath();
-  ctx.arc(cwX, cwY, 5, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fill();
-
-  // Card number
-  ctx.font = 'bold 40px "Courier New", monospace';
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
-  ctx.letterSpacing = '4px';
-  ctx.fillText('4532  ••••  ••••  7821', 80, 330);
-
-  // Cardholder name
-  ctx.font = '600 22px -apple-system, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  ctx.letterSpacing = '2px';
-  ctx.fillText('CARD HOLDER', 80, 400);
-
-  // Valid thru label
-  ctx.font = '11px -apple-system, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.letterSpacing = '1px';
-  ctx.fillText('VALID THRU', 80, 440);
-
-  // Expiry
-  ctx.font = '600 20px "Courier New", monospace';
-  ctx.fillStyle = 'rgba(255,255,255,0.82)';
-  ctx.letterSpacing = '2px';
-  ctx.fillText('12/28', 80, 464);
-
-  // VISA logo
-  ctx.save();
-  ctx.font = 'bold italic 54px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  ctx.letterSpacing = '-1px';
-  ctx.textAlign = 'right';
-  ctx.fillText('VISA', TEX_W - 60, TEX_H - 50);
-  ctx.restore();
-
-  // Decorative top-right arc
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-  ctx.lineWidth = 1;
-  for (let r = 60; r < 200; r += 25) {
-    ctx.beginPath();
-    ctx.arc(TEX_W - 20, 20, r, 0, Math.PI * 0.5);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  return canvas;
-}
-
-function drawBackTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width  = TEX_W;
-  canvas.height = TEX_H;
-  const ctx = canvas.getContext('2d');
-
-  // Background gradient
-  const grad = ctx.createLinearGradient(0, 0, TEX_W, TEX_H);
-  grad.addColorStop(0, '#0f0f1e');
-  grad.addColorStop(1, '#1a1a0a');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, TEX_W, TEX_H);
-
-  // Subtle texture
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.025)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < TEX_H; i += 8) {
-    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(TEX_W, i); ctx.stroke();
-  }
-  ctx.restore();
-
-  // Magnetic stripe
-  const stripeY = 60;
-  const stripeH = 80;
-  ctx.fillStyle = '#1a1008';
-  ctx.fillRect(0, stripeY, TEX_W, stripeH);
-  const stripeSheen = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeH);
-  stripeSheen.addColorStop(0,   'rgba(255,255,255,0.08)');
-  stripeSheen.addColorStop(0.5, 'rgba(255,255,255,0.0)');
-  stripeSheen.addColorStop(1,   'rgba(255,255,255,0.04)');
-  ctx.fillStyle = stripeSheen;
-  ctx.fillRect(0, stripeY, TEX_W, stripeH);
-
-  // Signature strip
-  const sigX = 80, sigY = 190, sigW = TEX_W - 260, sigH = 66;
-  ctx.fillStyle = '#f5f0e8';
-  ctx.beginPath();
-  ctx.roundRect(sigX, sigY, sigW, sigH, 3);
-  ctx.fill();
-
-  ctx.strokeStyle = 'rgba(200,190,170,0.8)';
-  ctx.lineWidth = 1;
-  for (let y = sigY + 14; y < sigY + sigH - 4; y += 11) {
-    ctx.beginPath();
-    ctx.moveTo(sigX + 4, y);
-    ctx.lineTo(sigX + sigW - 4, y);
-    ctx.stroke();
-  }
-
-  ctx.font = '10px -apple-system, sans-serif';
-  ctx.fillStyle = 'rgba(100,80,60,0.7)';
-  ctx.fillText('AUTHORIZED SIGNATURE — NOT VALID UNLESS SIGNED', sigX + 8, sigY + 12);
-
-  ctx.strokeStyle = 'rgba(40,20,10,0.55)';
-  ctx.lineWidth = 1.5;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.beginPath();
-  ctx.moveTo(sigX + 20, sigY + 40);
-  ctx.bezierCurveTo(sigX+50, sigY+25, sigX+70, sigY+55, sigX+100, sigY+38);
-  ctx.bezierCurveTo(sigX+120, sigY+28, sigX+140, sigY+52, sigX+170, sigY+40);
-  ctx.stroke();
-
-  // CVV box
-  const cvvX = TEX_W - 170, cvvY = 190, cvvW = 90, cvvH = 66;
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.roundRect(cvvX, cvvY, cvvW, cvvH, 3);
-  ctx.fill();
-
-  ctx.font = '10px -apple-system, sans-serif';
-  ctx.fillStyle = 'rgba(80,60,60,0.6)';
-  ctx.textAlign = 'center';
-  ctx.fillText('CVV', cvvX + cvvW / 2, cvvY + 14);
-
-  ctx.font = 'bold 22px "Courier New", monospace';
-  ctx.fillStyle = '#222';
-  ctx.fillText('•••', cvvX + cvvW / 2, cvvY + 46);
-  ctx.textAlign = 'left';
-
-  // Hologram sticker
-  const holX = TEX_W - 140, holY = 300, holR = 34;
-  const holGrad = ctx.createRadialGradient(holX, holY, 0, holX, holY, holR);
-  holGrad.addColorStop(0,    '#ffffffcc');
-  holGrad.addColorStop(0.2,  '#a0f0ff88');
-  holGrad.addColorStop(0.45, '#f0a0ff66');
-  holGrad.addColorStop(0.7,  '#fff08844');
-  holGrad.addColorStop(1,    'transparent');
-  ctx.fillStyle = holGrad;
-  ctx.beginPath();
-  ctx.arc(holX, holY, holR, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-  ctx.lineWidth = 1;
-  for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
-    ctx.beginPath();
-    ctx.moveTo(holX, holY);
-    ctx.lineTo(holX + Math.cos(a) * holR, holY + Math.sin(a) * holR);
-    ctx.stroke();
-  }
-
-  // Fine print
-  ctx.font = '11px -apple-system, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.28)';
-  ctx.fillText('This card is property of the issuing bank. If found, please return to the nearest branch or call +1-800-555-0100.', 40, 310, TEX_W - 80);
-  ctx.fillText('Use of this card is subject to the cardholder agreement. © 2024 CardDesigner Inc. Member FDIC.', 40, 334, TEX_W - 80);
-
-  // Bank logo area
-  ctx.font = 'bold 20px -apple-system, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.fillText('NOVA BANK', 80, 460);
-  ctx.font = '11px -apple-system, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.fillText('novabank.com · 1-800-555-0100', 80, 482);
-
-  // Network logo (Mastercard-style)
-  const mcX = TEX_W - 100, mcY = 450;
-  ctx.globalAlpha = 0.8;
-  ctx.fillStyle = '#eb001b';
-  ctx.beginPath(); ctx.arc(mcX - 16, mcY, 22, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#f79e1b';
-  ctx.beginPath(); ctx.arc(mcX + 16, mcY, 22, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ff5f00';
-  ctx.beginPath();
-  ctx.arc(mcX - 16, mcY, 22, -Math.PI/3, Math.PI/3);
-  ctx.arc(mcX + 16, mcY, 22, Math.PI - Math.PI/3, Math.PI + Math.PI/3, true);
-  ctx.closePath();
-  ctx.fill();
-  ctx.globalAlpha = 1.0;
-
-  return canvas;
-}
-
-// ============================================================
-// BUILD CARD GEOMETRY
-// ============================================================
-function buildCardShape() {
-  const w = CARD_W, h = CARD_H, r = CORNER_R;
-  const hw = w / 2, hh = h / 2;
-  const shape = new THREE.Shape();
-  shape.moveTo(-hw + r, -hh);
-  shape.lineTo( hw - r, -hh);
-  shape.quadraticCurveTo( hw, -hh,  hw, -hh + r);
-  shape.lineTo( hw,  hh - r);
-  shape.quadraticCurveTo( hw,  hh,  hw - r,  hh);
-  shape.lineTo(-hw + r,  hh);
-  shape.quadraticCurveTo(-hw,  hh, -hw,  hh - r);
-  shape.lineTo(-hw, -hh + r);
-  shape.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
-  return shape;
-}
-
-function separateCardGroups(geo) {
-  const pos = geo.attributes.position;
-  const nor = geo.attributes.normal;
-  const uvA = geo.attributes.uv;
-  const count = pos.count;
-
-  const p0=[], p1=[], p2=[], n0=[], n1=[], n2=[], u0=[], u1=[], u2=[];
-
-  for (let i = 0; i < count; i += 3) {
-    const nz = (nor.getZ(i) + nor.getZ(i+1) + nor.getZ(i+2)) / 3;
-    const pArr = nz > 0.99 ? p0 : nz < -0.99 ? p1 : p2;
-    const nArr = nz > 0.99 ? n0 : nz < -0.99 ? n1 : n2;
-    const uArr = nz > 0.99 ? u0 : nz < -0.99 ? u1 : u2;
-    for (let j = 0; j < 3; j++) {
-      const k = i + j;
-      pArr.push(pos.getX(k), pos.getY(k), pos.getZ(k));
-      nArr.push(nor.getX(k), nor.getY(k), nor.getZ(k));
-      uArr.push(uvA.getX(k), uvA.getY(k));
-    }
-  }
-
-  const newGeo = new THREE.BufferGeometry();
-  newGeo.setAttribute('position', new THREE.Float32BufferAttribute([...p0,...p1,...p2], 3));
-  newGeo.setAttribute('normal',   new THREE.Float32BufferAttribute([...n0,...n1,...n2], 3));
-  newGeo.setAttribute('uv',       new THREE.Float32BufferAttribute([...u0,...u1,...u2], 2));
-
-  const fc = p0.length / 3, bc = p1.length / 3, sc = p2.length / 3;
-  newGeo.addGroup(0,       fc, 0);
-  newGeo.addGroup(fc,      bc, 1);
-  newGeo.addGroup(fc + bc, sc, 2);
-  return newGeo;
-}
-
-function buildCardGeometry() {
-  const shape = buildCardShape();
-  const extrudeSettings = {
-    depth: CARD_D,
-    bevelEnabled: true,
-    bevelThickness: 0.015,
-    bevelSize: 0.015,
-    bevelSegments: 3,
-  };
-  const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-  geo.center();
-  return separateCardGroups(geo);
-}
-
-// ============================================================
-// TEXTURES
-// ============================================================
-function canvasToTexture(canvas) {
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
-let frontCanvas = drawFrontTexture();
-let backCanvas  = drawBackTexture();
-let frontTex    = canvasToTexture(frontCanvas);
-let backTex     = canvasToTexture(backCanvas);
-
-function applyUVFix(tex, flipX) {
-  tex.repeat.set(flipX ? -1 / CARD_W : 1 / CARD_W, 1 / CARD_H);
-  tex.offset.set(0.5, 0.5);
-  tex.needsUpdate = true;
-}
-
-applyUVFix(frontTex, false);
-applyUVFix(backTex,  true);
-
 // ============================================================
 // MATERIALS
 // ============================================================
-const matProps = {
-  metalness: 0.1,
-  roughness: 0.3,
-  clearcoat: 0.5,
-  clearcoatRoughness: 0.1,
-  iridescence: 0.0,
-};
-
-function makeMat(map, flipX) {
+function makeMat() {
   const m = new THREE.MeshPhysicalMaterial({
-    map,
-    metalness: matProps.metalness,
-    roughness: matProps.roughness,
-    clearcoat: matProps.clearcoat,
-    clearcoatRoughness: matProps.clearcoatRoughness,
-    iridescence: matProps.iridescence,
+    metalness: 0.1,
+    roughness: 0.3,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.1,
+    iridescence: 0.0,
     iridescenceIOR: 1.5,
     iridescenceThicknessRange: [100, 800],
     envMapIntensity: 1.0,
@@ -1351,33 +843,96 @@ function makeMat(map, flipX) {
   return m;
 }
 
-const frontMat = makeMat(frontTex, false);
-const backMat  = makeMat(backTex, true);
-const edgeMat  = new THREE.MeshPhysicalMaterial({
-  color: 0x13131f,
-  metalness: matProps.metalness,
-  roughness: Math.min(matProps.roughness + 0.2, 1.0),
-  clearcoat: 0,
-  envMapIntensity: 0.4,
-});
-edgeMat.stencilWrite = true;
-edgeMat.stencilRef   = 1;
-edgeMat.stencilFunc  = THREE.AlwaysStencilFunc;
-edgeMat.stencilZPass = THREE.ReplaceStencilOp;
-
-const materials = [frontMat, backMat, edgeMat];
+const frontMat = makeMat();
+const backMat  = makeMat();
 
 // ============================================================
-// CARD MESH
+// CARD — GLTF MODEL
 // ============================================================
-const geo  = buildCardGeometry();
-const card = new THREE.Mesh(geo, materials);
-card.castShadow    = true;
-card.receiveShadow = true;
 const TILT_DEFAULTS = { x: 0, y: 0, z: 0 };
 const DEG = Math.PI / 180;
-card.rotation.set(0, 0, 0);
+const card = new THREE.Group();
 scene.add(card);
+
+// ============================================================
+// GLTF LOAD HELPER — works via server fetch OR local file pick
+// ============================================================
+const gltfLoader = new GLTFLoader();
+
+function onGLTFLoaded(gltf) {
+  // Remove any loading/error overlay
+  const overlay = document.getElementById('gltf-overlay');
+  if (overlay) overlay.remove();
+
+  const model = gltf.scene;
+
+  // Scale so card width matches scene units (CARD_W = 8.56)
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const scale = CARD_W / size.x;
+  model.scale.setScalar(scale);
+
+  // Center model at scene origin
+  model.updateMatrixWorld(true);
+  const box2 = new THREE.Box3().setFromObject(model);
+  const center = box2.getCenter(new THREE.Vector3());
+  model.position.sub(center);
+
+  // Apply shadows and materials
+  model.traverse(child => {
+    if (!child.isMesh) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+    if (child.name === 'Body-Front') {
+      child.material = frontMat;
+    } else if (child.name === 'Body-Back') {
+      child.material = backMat;
+    }
+  });
+
+  // Remove any previous model inside card group
+  while (card.children.length) card.remove(card.children[0]);
+  // Update panel name label
+  const nameEl = document.getElementById('gltf-panel-name');
+  if (nameEl && nameEl.textContent === 'No model loaded')
+    nameEl.textContent = 'affirm card - NEW - Original.gltf';
+
+  card.add(model);
+}
+
+function showGLTFOverlay(mode) {
+  let el = document.getElementById('gltf-overlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'gltf-overlay';
+    el.style.cssText = [
+      'position:absolute','inset:0','display:flex','flex-direction:column',
+      'align-items:center','justify-content:center','gap:14px',
+      'background:rgba(7,7,15,0.72)','backdrop-filter:blur(6px)',
+      'pointer-events:none','z-index:5',
+    ].join(';');
+    document.getElementById('canvas-container').appendChild(el);
+  }
+  if (mode === 'loading') {
+    el.style.pointerEvents = 'none';
+    el.innerHTML = `<span style="color:rgba(255,255,255,0.4);font-size:13px;">Loading model…</span>`;
+  } else {
+    el.style.pointerEvents = 'auto';
+    el.innerHTML = `
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(124,106,245,0.7)" stroke-width="1.5"
+           style="margin-bottom:-4px;">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      </svg>
+      <span style="color:rgba(255,255,255,0.7);font-size:14px;font-weight:500;">Drop a GLTF or GLB file here</span>
+      <span style="color:rgba(255,255,255,0.35);font-size:11.5px;">or use the Model panel to browse</span>`;
+  }
+}
+
+// Try loading from relative path (works when served via http://)
+showGLTFOverlay('loading');
+gltfLoader.load('./affirm card - NEW - Original.gltf', onGLTFLoaded, undefined, () => {
+  showGLTFOverlay('error');
+});
 
 // ============================================================
 // SHADOW FLOOR (invisible)
@@ -1507,96 +1062,13 @@ function animate() {
 animate();
 
 // ============================================================
-// MATERIAL HELPERS
+// SLIDER FILL HELPER
 // ============================================================
-function syncMaterialProps() {
-  [frontMat, backMat].forEach(m => {
-    m.metalness          = matProps.metalness;
-    m.roughness          = matProps.roughness;
-    m.clearcoat          = matProps.clearcoat;
-    m.clearcoatRoughness = matProps.clearcoatRoughness;
-    m.iridescence        = matProps.iridescence;
-    m.needsUpdate        = true;
-  });
-  edgeMat.metalness = matProps.metalness;
-  edgeMat.roughness = Math.min(matProps.roughness + 0.2, 1.0);
-  edgeMat.needsUpdate = true;
-}
-
 function updateFill(el) {
   const min = parseFloat(el.min) || 0;
   const max = parseFloat(el.max) || 1;
   const pct = ((parseFloat(el.value) - min) / (max - min)) * 100;
   el.style.setProperty('--pct', pct + '%');
-}
-
-function setSliderAndValue(sliderId, valueId, val) {
-  const sl = document.getElementById(sliderId);
-  const vl = document.getElementById(valueId);
-  sl.value = val;
-  vl.textContent = parseFloat(val).toFixed(1);
-  updateFill(sl);
-}
-
-// ============================================================
-// MATERIAL PRESETS
-// ============================================================
-const MATERIAL_PRESETS = {
-  plastic:      { metalness: 0.1, roughness: 0.3,  clearcoat: 0.5, clearcoatRoughness: 0.1, iridescence: 0.0 },
-  metal:        { metalness: 1.0, roughness: 0.15, clearcoat: 0.8, clearcoatRoughness: 0.05, iridescence: 0.0 },
-  matte:        { metalness: 0.0, roughness: 0.9,  clearcoat: 0.0, clearcoatRoughness: 0.5, iridescence: 0.0 },
-  holographic:  { metalness: 0.5, roughness: 0.1,  clearcoat: 1.0, clearcoatRoughness: 0.05, iridescence: 1.0 },
-};
-
-function applyMaterialPreset(name) {
-  const p = MATERIAL_PRESETS[name];
-  Object.assign(matProps, p);
-  syncMaterialProps();
-  setSliderAndValue('sl-metalness',           'val-metalness',           p.metalness);
-  setSliderAndValue('sl-roughness',           'val-roughness',           p.roughness);
-  setSliderAndValue('sl-clearcoat',           'val-clearcoat',           p.clearcoat);
-  setSliderAndValue('sl-clearcoat-roughness', 'val-clearcoat-roughness', p.clearcoatRoughness);
-  setSliderAndValue('sl-iridescence',         'val-iridescence',         p.iridescence);
-
-  document.querySelectorAll('#material-presets .mat-preset-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.preset === name);
-  });
-}
-
-document.querySelectorAll('#material-presets .mat-preset-btn').forEach(btn => {
-  btn.addEventListener('click', () => applyMaterialPreset(btn.dataset.preset));
-});
-
-// ============================================================
-// MATERIAL SLIDERS
-// ============================================================
-function wireMatSlider(sliderId, valueId, prop) {
-  const sl = document.getElementById(sliderId);
-  const vl = document.getElementById(valueId);
-  sl.addEventListener('input', () => {
-    const v = parseFloat(sl.value);
-    vl.textContent = v.toFixed(2).replace(/\.?0+$/, '') || '0';
-    matProps[prop] = v;
-    syncMaterialProps();
-    document.querySelectorAll('#material-presets .mat-preset-btn').forEach(b => b.classList.remove('active'));
-  });
-}
-
-wireMatSlider('sl-metalness',           'val-metalness',           'metalness');
-wireMatSlider('sl-roughness',           'val-roughness',           'roughness');
-wireMatSlider('sl-clearcoat',           'val-clearcoat',           'clearcoat');
-wireMatSlider('sl-clearcoat-roughness', 'val-clearcoat-roughness', 'clearcoatRoughness');
-wireMatSlider('sl-iridescence',         'val-iridescence',         'iridescence');
-
-// Grain slider
-{
-  const sl = document.getElementById('sl-grain');
-  const vl = document.getElementById('val-grain');
-  sl.addEventListener('input', () => {
-    const v = parseFloat(sl.value);
-    vl.textContent = v.toFixed(2).replace(/\.?0+$/, '') || '0';
-    grainUniforms.amount.value = v;
-  });
 }
 
 // ============================================================
@@ -1892,55 +1364,6 @@ function syncRotationUI() {
   });
 }
 
-// ============================================================
-// IMAGE UPLOAD
-// ============================================================
-function handleUpload(inputId, thumbImgId, isBack) {
-  document.getElementById(inputId).addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const thumbImg = document.getElementById(thumbImgId);
-      thumbImg.src = url;
-      thumbImg.classList.add('has-image');
-
-      const c = document.createElement('canvas');
-      c.width  = TEX_W;
-      c.height = TEX_H;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, 0, 0, TEX_W, TEX_H);
-
-      if (isBack) {
-        backTex.image = c;
-        backTex.needsUpdate = true;
-        applyUVFix(backTex, true);
-        backMat.map = backTex;
-      } else {
-        frontTex.image = c;
-        frontTex.needsUpdate = true;
-        applyUVFix(frontTex, false);
-        frontMat.map = frontTex;
-      }
-      frontMat.needsUpdate = true;
-      backMat.needsUpdate  = true;
-    };
-    img.src = url;
-  });
-}
-
-handleUpload('upload-front', 'thumb-front-img', false);
-handleUpload('upload-back',  'thumb-back-img',  true);
-
-(function setDefaultThumbs() {
-  const fImg = document.getElementById('thumb-front-img');
-  fImg.src = frontCanvas.toDataURL();
-  fImg.classList.add('has-image');
-  const bImg = document.getElementById('thumb-back-img');
-  bImg.src = backCanvas.toDataURL();
-  bImg.classList.add('has-image');
-})();
 
 // ============================================================
 // EXPORT PNG
@@ -2046,122 +1469,60 @@ document.getElementById('btn-reset-camera').addEventListener('click', () => {
   setCameraView('perspective');
 });
 
+
 // ============================================================
-// DISPLACEMENT — NORMAL MAP (EMBOSS / DEBOSS)
+// GLTF DRAG-AND-DROP — canvas area
 // ============================================================
-
-// Convert a grayscale height map to a tangent-space normal map
-// using a Sobel filter so edges get proper light/shadow.
-function heightToNormalMap(img) {
-  const w = TEX_W, h = TEX_H;
-
-  const srcC = document.createElement('canvas');
-  srcC.width = w; srcC.height = h;
-  srcC.getContext('2d').drawImage(img, 0, 0, w, h);
-  const src = srcC.getContext('2d').getImageData(0, 0, w, h).data;
-
-  const outC = document.createElement('canvas');
-  outC.width = w; outC.height = h;
-  const outCtx = outC.getContext('2d');
-  const out = outCtx.createImageData(w, h);
-  const d = out.data;
-
-  // Sample luminance from source pixels
-  function lum(x, y) {
-    x = Math.max(0, Math.min(w - 1, x));
-    y = Math.max(0, Math.min(h - 1, y));
-    const i = (y * w + x) * 4;
-    return (0.299 * src[i] + 0.587 * src[i + 1] + 0.114 * src[i + 2]) / 255;
-  }
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      // 3×3 Sobel kernel
-      const tl = lum(x-1,y-1), tm = lum(x,y-1), tr = lum(x+1,y-1);
-      const ml = lum(x-1,y  ),                   mr = lum(x+1,y  );
-      const bl = lum(x-1,y+1), bm = lum(x,y+1), br = lum(x+1,y+1);
-
-      const gx = (tr + 2*mr + br) - (tl + 2*ml + bl);
-      const gy = (tl + 2*tm + tr) - (bl + 2*bm + br);
-      const gz = 1.0; // lower = sharper normals
-
-      const len = Math.sqrt(gx*gx + gy*gy + gz*gz);
-      const i = (y * w + x) * 4;
-      d[i]   = ((-gx / len) * 0.5 + 0.5) * 255 | 0;
-      d[i+1] = ((-gy / len) * 0.5 + 0.5) * 255 | 0;
-      d[i+2] = (( gz / len) * 0.5 + 0.5) * 255 | 0;
-      d[i+3] = 255;
-    }
-  }
-
-  outCtx.putImageData(out, 0, 0);
-  return outC;
-}
-
-function makeNormalTex(normalCanvas, flipX) {
-  const tex = new THREE.CanvasTexture(normalCanvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  applyUVFix(tex, flipX);
-  return tex;
-}
-
-function applyDisplacementDepth(v) {
-  if (frontMat.normalMap) { frontMat.normalScale.set(v, v);   frontMat.needsUpdate = true; }
-  if (backMat.normalMap)  { backMat.normalScale.set(-v, v);   backMat.needsUpdate  = true; }
+function loadGLTFFile(file) {
+  if (!file || !/\.(gltf|glb)$/i.test(file.name)) return;
+  showGLTFOverlay('loading');
+  const nameEl = document.getElementById('gltf-panel-name');
+  if (nameEl) nameEl.textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    gltfLoader.parse(ev.target.result, '', onGLTFLoaded,
+      err => { console.error('GLTF parse error', err); showGLTFOverlay('error'); });
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 {
-  const sl = document.getElementById('sl-bump-scale');
-  const vl = document.getElementById('val-bump-scale');
-
-  sl.addEventListener('input', () => {
-    const v = parseFloat(sl.value);
-    vl.textContent = v.toFixed(2);
-    applyDisplacementDepth(v);
-    updateFill(sl);
+  const cc = document.getElementById('canvas-container');
+  cc.addEventListener('dragenter', e => { e.preventDefault(); });
+  cc.addEventListener('dragover',  e => {
+    e.preventDefault();
+    cc.classList.add('drag-over');
   });
-
-  function handleBumpUpload(inputId, thumbImgId, isBack) {
-    document.getElementById(inputId).addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        document.getElementById(thumbImgId).src = url;
-        document.getElementById(thumbImgId).classList.add('has-image');
-
-        const normalCanvas = heightToNormalMap(img);
-        const tex = makeNormalTex(normalCanvas, isBack);
-        const mat = isBack ? backMat : frontMat;
-        mat.normalMap = tex;
-        mat.normalMapType = THREE.TangentSpaceNormalMap;
-        mat.normalScale.set(parseFloat(sl.value), parseFloat(sl.value));
-        mat.needsUpdate = true;
-      };
-      img.src = url;
-    });
-  }
-
-  handleBumpUpload('upload-bump-front', 'thumb-bump-front-img', false);
-  handleBumpUpload('upload-bump-back',  'thumb-bump-back-img',  true);
-
-  document.getElementById('btn-clear-bump-front').addEventListener('click', () => {
-    frontMat.normalMap = null; frontMat.needsUpdate = true;
-    const img = document.getElementById('thumb-bump-front-img');
-    img.src = ''; img.classList.remove('has-image');
+  cc.addEventListener('dragleave', e => {
+    if (!cc.contains(e.relatedTarget)) cc.classList.remove('drag-over');
   });
-
-  document.getElementById('btn-clear-bump-back').addEventListener('click', () => {
-    backMat.normalMap = null; backMat.needsUpdate = true;
-    const img = document.getElementById('thumb-bump-back-img');
-    img.src = ''; img.classList.remove('has-image');
+  cc.addEventListener('drop', e => {
+    e.preventDefault();
+    cc.classList.remove('drag-over');
+    const file = Array.from(e.dataTransfer.files)
+      .find(f => /\.(gltf|glb)$/i.test(f.name));
+    loadGLTFFile(file);
   });
 }
 
-// Initial material preset
-applyMaterialPreset('plastic');
+// ============================================================
+// GLTF PANEL FILE PICKER
+// ============================================================
+{
+  const input = document.getElementById('panel-gltf-input');
+  const drop  = document.getElementById('gltf-panel-drop');
+  input.addEventListener('change', e => loadGLTFFile(e.target.files[0]));
+  drop.addEventListener('dragover', e => {
+    e.preventDefault(); drop.classList.add('drag-over');
+  });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault(); drop.classList.remove('drag-over');
+    const file = Array.from(e.dataTransfer.files)
+      .find(f => /\.(gltf|glb)$/i.test(f.name));
+    loadGLTFFile(file);
+  });
+}
 
 </script>
 </body>
